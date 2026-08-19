@@ -1,0 +1,145 @@
+.demo-shell {
+  --deep-green: #153a33;
+  --dark-green: #0d2824;
+  --paper: #f2e2c2;
+  --paper-light: #fff7e7;
+  --cinnabar: #b84b35;
+  --brass: #d5ad58;
+  --ink: #493625;
+  min-height: 100vh;
+  padding: 18px clamp(18px, 3vw, 48px) 32px;
+  color: var(--paper-light);
+  background:
+    radial-gradient(circle at 15% -10%, rgb(93 144 111 / 28%), transparent 30rem),
+    radial-gradient(circle at 90% 30%, rgb(213 173 88 / 9%), transparent 26rem),
+    repeating-linear-gradient(112deg, transparent 0 8px, rgb(255 255 255 / 1.2%) 9px 10px),
+    var(--dark-green);
+}
+
+.demo-header {
+  width: min(1420px, 100%);
+  min-height: 76px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 22px;
+  border-bottom: 1px solid rgb(213 173 88 / 26%);
+}
+
+.demo-brand { display: flex; align-items: center; gap: 12px; }
+.demo-brand__seal {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border: 1px solid #d98570; color: #ffe2bf; background: var(--cinnabar);
+  box-shadow: inset 0 0 0 3px rgb(255 237 206 / 18%); font: 700 23px/1 Georgia, serif;
+}
+.demo-brand p { margin: 0 0 1px; color: var(--brass); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
+.demo-brand strong { font: 700 27px/1 Georgia, "Noto Serif SC", serif; letter-spacing: .15em; }
+.voyage-badge { min-width: 138px; padding: 8px 18px; text-align: center; border: 1px solid rgb(213 173 88 / 36%); background: rgb(7 28 25 / 42%); }
+.voyage-badge span, .voyage-badge strong { display: block; }
+.voyage-badge span { color: #bda976; font-size: 9px; letter-spacing: .2em; }
+.voyage-badge strong { margin-top: 2px; color: #fff0c8; font-family: Georgia, "Noto Serif SC", serif; font-size: 16px; }
+.quiet-action { min-height: 40px; padding: 0 16px; border: 1px solid rgb(213 173 88 / 45%); color: #efdfb9; background: transparent; cursor: pointer; }
+.demo-header__rules { justify-self: end; }
+
+.player-strip {
+  width: min(1420px, 100%); margin: 16px auto; padding: 0; display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; list-style: none;
+}
+.player-card {
+  min-width: 0; padding: 11px 13px; display: grid; grid-template-columns: auto 1fr auto auto; gap: 11px; align-items: center;
+  border: 1px solid rgb(213 173 88 / 19%); background: rgb(8 33 29 / 66%); color: #e9dbbd;
+}
+.player-card.is-current { border-color: rgb(213 173 88 / 68%); box-shadow: inset 3px 0 var(--brass); background: #20483f; }
+.player-card__token { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #fff7de; font-weight: 800; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 24%); }
+.player-card__identity, .player-card__wealth, .player-card__shares { display: flex; flex-direction: column; }
+.player-card strong { font-size: 14px; }
+.player-card small { color: #b9a984; font-size: 9px; letter-spacing: .1em; }
+.player-card__wealth, .player-card__shares { min-width: 42px; text-align: right; border-left: 1px solid rgb(213 173 88 / 15%); }
+.player-card__wealth strong, .player-card__shares strong { color: #ffe09b; font-family: Georgia, serif; font-size: 18px; }
+
+.demo-workspace {
+  width: min(1420px, 100%); min-height: calc(100vh - 180px); margin: 0 auto; display: grid;
+  grid-template-columns: minmax(430px, 1.65fr) minmax(320px, .72fr); gap: clamp(14px, 2vw, 26px); align-items: stretch;
+}
+.board-panel, .decision-panel { border: 1px solid rgb(213 173 88 / 23%); box-shadow: 0 20px 52px rgb(2 13 11 / 28%); }
+.board-panel { min-height: 660px; padding: clamp(14px, 2vw, 24px); display: flex; flex-direction: column; background: rgb(9 32 28 / 56%); }
+.panel-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 12px; }
+.panel-heading span, .decision-panel__eyebrow { color: var(--brass); font-size: 10px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.panel-heading h2 { margin: 3px 0 0; font: 700 clamp(20px, 2vw, 28px)/1.1 Georgia, "Noto Serif SC", serif; }
+.panel-heading p { margin: 0; color: #b9aa86; font-size: 11px; }
+
+.board-stage { position: relative; flex: 1; width: min(100%, 420px); margin: 0 auto; overflow: hidden; border: 8px solid #8e6c38; outline: 1px solid #dbb869; background: #c9aa72; box-shadow: 0 16px 30px rgb(0 0 0 / 34%); aspect-ratio: 1112 / 2183; }
+.board-stage__image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.demo-boat { position: absolute; left: var(--boat-x); top: var(--boat-y); width: clamp(24px, 4vw, 40px); aspect-ratio: 1.45; display: grid; place-items: center; transform: translate(-50%, -50%) rotate(-3deg); border: 2px solid #f3d58b; border-radius: 50% 50% 38% 38%; color: #fff8dc; background: var(--boat-color); box-shadow: 0 3px 7px rgb(0 0 0 / 48%); font: 800 10px/1 sans-serif; }
+.demo-boat::after { content: ''; position: absolute; width: 2px; height: 18px; bottom: 55%; background: #3a2a1e; }
+.board-hotspot { position: absolute; left: var(--spot-x); top: var(--spot-y); width: 16px; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid #fff1c2; border-radius: 50%; background: var(--cinnabar); box-shadow: 0 0 0 4px rgb(184 75 53 / 30%); opacity: .74; transition: transform .18s, box-shadow .18s; }
+.board-hotspot.is-selected { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 6px rgb(255 226 143 / 38%), 0 0 15px #ffe28f; opacity: 1; }
+
+.decision-panel { align-self: stretch; padding: clamp(26px, 3vw, 44px); color: var(--ink); background: linear-gradient(rgb(255 248 229 / 96%), rgb(237 217 178 / 98%)), repeating-linear-gradient(0deg, transparent 0 4px, rgb(82 54 23 / 4%) 5px); }
+.decision-panel h1 { margin: 8px 0 10px; font: 700 clamp(25px, 3vw, 38px)/1.12 Georgia, "Noto Serif SC", serif; color: #3d2a1c; }
+.decision-panel h1 span { color: var(--cinnabar); }
+.decision-panel__lead { margin: 0 0 24px; color: #79664d; font-size: 13px; line-height: 1.65; }
+.placement-list { display: grid; gap: 10px; }
+.placement-card { width: 100%; min-height: 86px; padding: 13px; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center; text-align: left; border: 1px solid #c4a979; color: var(--ink); background: rgb(255 250 236 / 68%); cursor: pointer; transition: border-color .15s, transform .15s, background .15s; }
+.placement-card:hover { transform: translateY(-1px); border-color: #a76b48; }
+.placement-card.is-selected { border-color: var(--cinnabar); box-shadow: inset 3px 0 var(--cinnabar); background: #fff7e5; }
+.placement-card__mark { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #a98b5b; border-radius: 50%; color: var(--cinnabar); font-weight: 900; }
+.placement-card__copy { display: flex; flex-direction: column; gap: 4px; }
+.placement-card__copy strong { font: 700 16px/1.1 Georgia, "Noto Serif SC", serif; }
+.placement-card__copy small { color: #806e55; line-height: 1.35; }
+.placement-card__cost { min-width: 50px; color: #80633d; text-align: right; font-size: 10px; }
+.placement-card__cost strong { display: block; color: var(--cinnabar); font: 700 24px/1 Georgia, serif; }
+.decision-panel__summary { margin: 22px 0 10px; padding-top: 14px; display: flex; justify-content: space-between; border-top: 1px solid #c8ae7f; color: #79664c; font-size: 12px; }
+.decision-panel__summary strong { color: #4d3522; }
+.primary-action { width: 100%; min-height: 52px; border: 1px solid #772d20; color: #fff1d0; background: var(--cinnabar); box-shadow: inset 0 0 0 2px rgb(255 232 196 / 18%); font-weight: 800; letter-spacing: .06em; cursor: pointer; }
+.primary-action:disabled { border-color: #a89779; color: #887963; background: #c8b99c; cursor: not-allowed; box-shadow: none; }
+.decision-status { min-height: 20px; margin: 10px 0 0; color: #7b6245; text-align: center; font-size: 11px; }
+.mobile-nav { display: none; }
+
+@media (max-width: 899px) {
+  .demo-shell { padding: 10px 12px calc(47svh + 58px + env(safe-area-inset-bottom)); }
+  .demo-header { min-height: 58px; grid-template-columns: 1fr auto; }
+  .demo-brand__seal { width: 36px; height: 36px; font-size: 19px; }
+  .demo-brand p { display: none; }
+  .demo-brand strong { font-size: 20px; }
+  .voyage-badge { min-width: 108px; padding: 6px 10px; }
+  .voyage-badge span { display: none; }
+  .voyage-badge strong { margin: 0; font-size: 14px; }
+  .demo-header__rules { display: none; }
+  .player-strip { margin: 10px auto; display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .player-card { min-width: 210px; padding: 9px 10px; scroll-snap-align: start; }
+  .player-card__token { width: 30px; height: 30px; }
+  .demo-workspace { min-height: 0; display: block; }
+  .board-panel { min-height: 500px; padding: 12px; }
+  .panel-heading { margin-bottom: 8px; }
+  .panel-heading h2 { font-size: 19px; }
+  .board-stage { width: min(100%, 300px); border-width: 5px; }
+  .decision-panel { position: fixed; z-index: 20; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); max-height: 45svh; padding: 18px 16px 12px; overflow-y: auto; border-width: 1px 0 0; box-shadow: 0 -14px 40px rgb(0 0 0 / 38%); }
+  .decision-panel h1 { margin: 3px 0 5px; font-size: 23px; }
+  .decision-panel__lead { margin-bottom: 10px; font-size: 11px; }
+  .placement-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .placement-card { min-height: 72px; padding: 9px; grid-template-columns: auto 1fr; gap: 7px; }
+  .placement-card__mark { width: 23px; height: 23px; }
+  .placement-card__copy strong { font-size: 13px; }
+  .placement-card__copy small { display: none; }
+  .placement-card__cost { grid-column: 2; text-align: left; }
+  .placement-card__cost strong { display: inline; font-size: 16px; }
+  .decision-panel__summary { margin: 10px 0 7px; padding-top: 8px; }
+  .primary-action { min-height: 44px; }
+  .decision-status { margin-top: 5px; }
+  .mobile-nav { position: fixed; z-index: 25; left: 0; right: 0; bottom: 0; height: calc(58px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgb(213 173 88 / 28%); background: #102f2a; }
+  .mobile-nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; color: #aa9b7d; background: transparent; font-size: 10px; }
+  .mobile-nav button span { font-size: 17px; }
+  .mobile-nav button.is-active { color: #f0cc79; }
+}
+
+@media (max-width: 360px) {
+  .player-card { min-width: 190px; }
+  .decision-panel { max-height: 47svh; padding-inline: 12px; }
+  .decision-panel__lead { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

@@ -1,12 +1,24 @@
+import { useState } from 'react'
 import { demoState } from './demoState'
+import { TableView } from './TableView'
+import './manila-demo.css'
 
 export function ManilaDemo() {
+  const [selectedPlacementId, setSelectedPlacementId] = useState<string | null>(null)
+  const [confirmedPlacementId, setConfirmedPlacementId] = useState<string | null>(null)
+
   return (
-    <section aria-label="马尼拉视觉演示">
-      <p>第 {demoState.voyage} 航程</p>
-      <h1>{demoState.players[0]?.name}</h1>
-      <h2>放置同伙</h2>
-      <button type="button">确认放置</button>
-    </section>
+    <TableView
+      state={demoState}
+      selectedPlacementId={selectedPlacementId}
+      confirmedPlacementId={confirmedPlacementId}
+      onSelectPlacement={(placementId) => {
+        setSelectedPlacementId(placementId)
+        setConfirmedPlacementId(null)
+      }}
+      onConfirmPlacement={() => {
+        if (selectedPlacementId) setConfirmedPlacementId(selectedPlacementId)
+      }}
+    />
   )
 }

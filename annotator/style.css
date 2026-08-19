@@ -142,6 +142,29 @@ body {
   color: #8ab4f8;
 }
 
+.canvas-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.panel .canvas-tab {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.panel .canvas-tab.active {
+  border-color: #4ea3ff;
+  background: #21466e;
+}
+
+.canvas-description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #bbb;
+}
+
 .panel hr {
   width: 100%;
   border: none;

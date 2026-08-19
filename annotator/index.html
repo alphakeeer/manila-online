@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Board Annotator</title>
+    <title>Manila Annotator</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -20,7 +20,17 @@
       </div>
 
       <aside class="panel">
-        <h1>Board Annotator</h1>
+        <h1>Manila Annotator</h1>
+
+        <div class="canvas-tabs" role="tablist" aria-label="标注画布">
+          <button class="canvas-tab active" type="button" data-canvas="board">Board</button>
+          <button class="canvas-tab" type="button" data-canvas="share-1">Jade</button>
+          <button class="canvas-tab" type="button" data-canvas="share-2">Nutmeg</button>
+          <button class="canvas-tab" type="button" data-canvas="share-3">Silk</button>
+          <button class="canvas-tab" type="button" data-canvas="share-4">Ginseng</button>
+        </div>
+
+        <p id="canvas-description" class="canvas-description">Board：可放置 Share 和 Player</p>
 
         <div class="row">
           <button id="btn-add-share" type="button">Add Share</button>

@@ -1,0 +1,741 @@
+{
+  "board": {
+    "width": 1043,
+    "height": 2048,
+    "items": [
+      {
+        "id": "share-1",
+        "name": "shipyard-a-punt-slot",
+        "type": "jade_share",
+        "x": 847.06,
+        "y": 372.47,
+        "rotation": 15,
+        "scale": 0.54
+      },
+      {
+        "id": "share-3",
+        "name": "shipyard-b-punt-slot",
+        "type": "jade_share",
+        "x": 859.98,
+        "y": 685.95,
+        "rotation": 15,
+        "scale": 0.54
+      },
+      {
+        "id": "share-4",
+        "name": "shipyard-c-punt-slot",
+        "type": "jade_share",
+        "x": 852.81,
+        "y": 1007.75,
+        "rotation": 15,
+        "scale": 0.54
+      },
+      {
+        "id": "share-5",
+        "name": "port-c-punt-slot",
+        "type": "jade_share",
+        "x": 360.89,
+        "y": 423.28,
+        "rotation": -85,
+        "scale": 0.54
+      },
+      {
+        "id": "share-6",
+        "name": "port-b-punt-slot",
+        "type": "jade_share",
+        "x": 365.4,
+        "y": 275.76,
+        "rotation": -85,
+        "scale": 0.54
+      },
+      {
+        "id": "share-7",
+        "name": "port-a-punt-slot",
+        "type": "jade_share",
+        "x": 367.43,
+        "y": 129.56,
+        "rotation": -85,
+        "scale": 0.54
+      },
+      {
+        "id": "share-8",
+        "name": "left-route-space-0",
+        "type": "jade_share",
+        "x": 198.74,
+        "y": 1866.36,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-9",
+        "name": "center-route-space-0",
+        "type": "jade_share",
+        "x": 363.56,
+        "y": 1882.2,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-10",
+        "name": "right-route-space-0",
+        "type": "jade_share",
+        "x": 528.38,
+        "y": 1882.2,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-11",
+        "name": "left-route-space-1",
+        "type": "jade_share",
+        "x": 207.78,
+        "y": 1784.05,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-13",
+        "name": "center-route-space-1",
+        "type": "jade_share",
+        "x": 372.6,
+        "y": 1799.89,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-14",
+        "name": "right-route-space-1",
+        "type": "jade_share",
+        "x": 537.42,
+        "y": 1799.89,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-15",
+        "name": "left-route-space-2",
+        "type": "jade_share",
+        "x": 216.78,
+        "y": 1701.28,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-16",
+        "name": "center-route-space-2",
+        "type": "jade_share",
+        "x": 381.6,
+        "y": 1717.12,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-17",
+        "name": "right-route-space-2",
+        "type": "jade_share",
+        "x": 546.42,
+        "y": 1717.12,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-18",
+        "name": "left-route-space-3",
+        "type": "jade_share",
+        "x": 225.73,
+        "y": 1618.05,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-19",
+        "name": "center-route-space-3",
+        "type": "jade_share",
+        "x": 390.55,
+        "y": 1633.89,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-20",
+        "name": "right-route-space-3",
+        "type": "jade_share",
+        "x": 555.37,
+        "y": 1633.89,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-21",
+        "name": "left-route-space-4",
+        "type": "jade_share",
+        "x": 234.64,
+        "y": 1534.36,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-22",
+        "name": "center-route-space-4",
+        "type": "jade_share",
+        "x": 399.46,
+        "y": 1550.2,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-23",
+        "name": "right-route-space-4",
+        "type": "jade_share",
+        "x": 564.28,
+        "y": 1550.2,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-24",
+        "name": "left-route-space-5",
+        "type": "jade_share",
+        "x": 243.5,
+        "y": 1450.21,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-25",
+        "name": "center-route-space-5",
+        "type": "jade_share",
+        "x": 408.32,
+        "y": 1466.05,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-26",
+        "name": "right-route-space-5",
+        "type": "jade_share",
+        "x": 573.14,
+        "y": 1466.05,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-27",
+        "name": "left-route-space-6",
+        "type": "jade_share",
+        "x": 252.32,
+        "y": 1365.59,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-28",
+        "name": "center-route-space-6",
+        "type": "jade_share",
+        "x": 417.14,
+        "y": 1381.43,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-29",
+        "name": "right-route-space-6",
+        "type": "jade_share",
+        "x": 581.96,
+        "y": 1381.43,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-30",
+        "name": "left-route-space-7",
+        "type": "jade_share",
+        "x": 261.1,
+        "y": 1280.51,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-31",
+        "name": "center-route-space-7",
+        "type": "jade_share",
+        "x": 425.92,
+        "y": 1296.35,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-32",
+        "name": "right-route-space-7",
+        "type": "jade_share",
+        "x": 590.74,
+        "y": 1296.35,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-33",
+        "name": "left-route-space-8",
+        "type": "jade_share",
+        "x": 269.83,
+        "y": 1194.96,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-34",
+        "name": "center-route-space-8",
+        "type": "jade_share",
+        "x": 434.65,
+        "y": 1210.8,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-35",
+        "name": "right-route-space-8",
+        "type": "jade_share",
+        "x": 599.47,
+        "y": 1210.8,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-36",
+        "name": "left-route-space-9",
+        "type": "jade_share",
+        "x": 278.52,
+        "y": 1108.95,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-37",
+        "name": "center-route-space-9",
+        "type": "jade_share",
+        "x": 443.34,
+        "y": 1124.79,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-38",
+        "name": "right-route-space-9",
+        "type": "jade_share",
+        "x": 608.16,
+        "y": 1124.79,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-39",
+        "name": "left-route-space-10",
+        "type": "jade_share",
+        "x": 287.17,
+        "y": 1022.47,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-40",
+        "name": "center-route-space-10",
+        "type": "jade_share",
+        "x": 451.99,
+        "y": 1038.31,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-41",
+        "name": "right-route-space-10",
+        "type": "jade_share",
+        "x": 616.81,
+        "y": 1038.31,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-42",
+        "name": "left-route-space-11",
+        "type": "jade_share",
+        "x": 295.77,
+        "y": 935.53,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-43",
+        "name": "center-route-space-11",
+        "type": "jade_share",
+        "x": 460.59,
+        "y": 951.37,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-44",
+        "name": "right-route-space-11",
+        "type": "jade_share",
+        "x": 625.41,
+        "y": 951.37,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-45",
+        "name": "left-route-space-12",
+        "type": "jade_share",
+        "x": 304.39,
+        "y": 847.98,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-46",
+        "name": "center-route-space-12",
+        "type": "jade_share",
+        "x": 469.21,
+        "y": 863.82,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-47",
+        "name": "right-route-space-12",
+        "type": "jade_share",
+        "x": 634.03,
+        "y": 863.82,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-12",
+        "name": "left-route-space-13",
+        "type": "jade_share",
+        "x": 312.91,
+        "y": 760.09,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-48",
+        "name": "center-route-space-13",
+        "type": "jade_share",
+        "x": 477.73,
+        "y": 775.93,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "share-49",
+        "name": "right-route-space-13",
+        "type": "jade_share",
+        "x": 642.55,
+        "y": 775.93,
+        "rotation": 0,
+        "scale": 0.54
+      },
+      {
+        "id": "player-51",
+        "name": "port-a-accomplice-slot",
+        "type": "player_red",
+        "x": 75.23,
+        "y": 77.17,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-52",
+        "name": "port-b-accomplice-slot",
+        "type": "player_red",
+        "x": 71.49,
+        "y": 225.77,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-53",
+        "name": "port-c-accomplice-slot",
+        "type": "player_red",
+        "x": 72.14,
+        "y": 376.69,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-54",
+        "name": "shipyard-c-accomplice-slot",
+        "type": "player_red",
+        "x": 140.62,
+        "y": 389.66,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-55",
+        "name": "shipyard-b-accomplice-slot",
+        "type": "player_red",
+        "x": 141.57,
+        "y": 234.53,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-56",
+        "name": "shipyard-a-accomplice-slot",
+        "type": "player_red",
+        "x": 141.99,
+        "y": 90.28,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-57",
+        "name": "shipyard-a-accomplice-slot-1",
+        "type": "player_red",
+        "x": 986.93,
+        "y": 321.08,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-58",
+        "name": "shipyard-a-accomplice-slot-2",
+        "type": "player_red",
+        "x": 962.25,
+        "y": 387.53,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-59",
+        "name": "shipyard-b-accomplice-slot-1",
+        "type": "player_red",
+        "x": 987.94,
+        "y": 647.66,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-60",
+        "name": "shipyard-b-accomplice-slot-2",
+        "type": "player_red",
+        "x": 955.04,
+        "y": 707.93,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-61",
+        "name": "shipyard-c-accomplice-slot-1",
+        "type": "player_red",
+        "x": 980.48,
+        "y": 959.13,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-62",
+        "name": "shipyard-c-accomplice-slot-2",
+        "type": "player_red",
+        "x": 955.4,
+        "y": 1020.01,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-63",
+        "name": "insurance-office-accomplice-slot",
+        "type": "player_red",
+        "x": 994.32,
+        "y": 1307.58,
+        "rotation": 0,
+        "scale": 0.06
+      },
+
+      {
+        "id": "player-65",
+        "name": "pirate-boat-crew-slot",
+        "type": "player_red",
+        "x": 56.1,
+        "y": 630.04,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-66",
+        "name": "pirate-boat-captain-slot",
+        "type": "player_red",
+        "x": 120.41,
+        "y": 633.67,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-67",
+        "name": "small-pilot-slot",
+        "type": "player_red",
+        "x": 49.06,
+        "y": 927.52,
+        "rotation": 0,
+        "scale": 0.06
+      },
+      {
+        "id": "player-68",
+        "name": "large-pilot-slot",
+        "type": "player_red",
+        "x": 54.91,
+        "y": 1069.03,
+        "rotation": 0,
+        "scale": 0.06
+      }
+    ]
+  },
+  "shares": [
+    {
+      "id": "share-1",
+      "width": 221,
+      "height": 568,
+      "items": [
+        {
+        "id": "player-69",
+        "name": "jade-cargo-slot-cost-3",
+          "type": "player_red",
+          "x": 123.48,
+          "y": 152.58,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-70",
+        "name": "jade-cargo-slot-cost-4",
+          "type": "player_red",
+          "x": 111.7,
+          "y": 268.42,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-71",
+        "name": "jade-cargo-slot-cost-5a",
+          "type": "player_red",
+          "x": 100.68,
+          "y": 387.32,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-72",
+        "name": "jade-cargo-slot-cost-5b",
+          "type": "player_red",
+          "x": 88.55,
+          "y": 503.68,
+          "rotation": 0,
+          "scale": 0.08
+        }
+      ]
+    },
+    {
+      "id": "share-2",
+      "width": 221,
+      "height": 568,
+      "items": [
+        {
+        "id": "player-73",
+        "name": "nutmeg-cargo-slot-cost-2",
+          "type": "player_red",
+          "x": 119.53,
+          "y": 195.47,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-74",
+        "name": "nutmeg-cargo-slot-cost-3",
+          "type": "player_red",
+          "x": 105.64,
+          "y": 330.56,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-75",
+        "name": "nutmeg-cargo-slot-cost-4",
+          "type": "player_red",
+          "x": 92.48,
+          "y": 462.17,
+          "rotation": 0,
+          "scale": 0.08
+        }
+      ]
+    },
+    {
+      "id": "share-3",
+      "width": 221,
+      "height": 568,
+      "items": [
+        {
+        "id": "player-76",
+        "name": "silk-cargo-slot-cost-3",
+          "type": "player_red",
+          "x": 121.03,
+          "y": 195.31,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-77",
+        "name": "silk-cargo-slot-cost-4",
+          "type": "player_red",
+          "x": 108.9,
+          "y": 326.5,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-78",
+        "name": "silk-cargo-slot-cost-5",
+          "type": "player_red",
+          "x": 92.84,
+          "y": 461.96,
+          "rotation": 0,
+          "scale": 0.08
+        }
+      ]
+    },
+    {
+      "id": "share-4",
+      "width": 221,
+      "height": 568,
+      "items": [
+        {
+        "id": "player-79",
+        "name": "ginseng-cargo-slot-cost-1",
+          "type": "player_red",
+          "x": 119.43,
+          "y": 198.24,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-80",
+        "name": "ginseng-cargo-slot-cost-2",
+          "type": "player_red",
+          "x": 106.89,
+          "y": 327.26,
+          "rotation": 0,
+          "scale": 0.08
+        },
+        {
+        "id": "player-81",
+        "name": "ginseng-cargo-slot-cost-3",
+          "type": "player_red",
+          "x": 94.27,
+          "y": 462.19,
+          "rotation": 0,
+          "scale": 0.08
+        }
+      ]
+    }
+  ]
+}

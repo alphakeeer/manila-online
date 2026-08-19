@@ -102,6 +102,23 @@ describe('auction and harbor master duties', () => {
     expect(placed.boats.map((boat) => boat.startPosition)).toEqual([4, 3, 2])
     expect(placed.phase).toMatchObject({ kind: 'placement', playerId: 'p1', placementRound: 1 })
   })
+
+  test('publishes legal launch and pilot combinations as decision data', () => {
+    const launch = reachLaunch()
+    const launchDecision = getDecision(launch)
+    expect(launchDecision).toMatchObject({ kind: 'launch' })
+    if (launchDecision?.kind !== 'launch') return
+    expect(launchDecision.startPositionTriples).toContainEqual([4, 3, 2])
+    expect(launchDecision.lanes).toEqual([0, 1, 2])
+
+    const placement = reachPlacement()
+    placement.phase = { kind: 'smallPilot', playerId: 'p1' }
+    const pilotDecision = getDecision(placement)
+    expect(pilotDecision).toMatchObject({ kind: 'smallPilot' })
+    if (pilotDecision?.kind !== 'smallPilot') return
+    expect(pilotDecision.legalMoves).toContainEqual([{ boatId: 'boat-1', delta: 1 }])
+    expect(pilotDecision.legalMoves).toContainEqual([])
+  })
 })
 
 describe('finance and placement', () => {

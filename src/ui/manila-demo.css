@@ -146,7 +146,7 @@
 .handoff-card > small { display: block; margin-bottom: 26px; color: #a99a7a; line-height: 1.7; }
 
 @media (max-width: 899px) {
-  .demo-shell { padding: 10px 12px calc(47svh + 58px + env(safe-area-inset-bottom)); }
+  .demo-shell { padding: 10px 12px calc(24px + env(safe-area-inset-bottom)); }
   .demo-header { min-height: 58px; grid-template-columns: 1fr auto; }
   .demo-brand__seal { width: 36px; height: 36px; font-size: 19px; }
   .demo-brand p { display: none; }
@@ -166,7 +166,7 @@
   .panel-heading { margin-bottom: 8px; }
   .panel-heading h2 { font-size: 19px; }
   .board-stage { width: min(100%, 300px); border-width: 5px; }
-  .decision-panel { position: fixed; z-index: 20; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); max-height: 45svh; padding: 18px 16px 12px; overflow-y: auto; border-width: 1px 0 0; box-shadow: 0 -14px 40px rgb(0 0 0 / 38%); }
+  .decision-panel { position: static; max-height: none; margin-top: 12px; padding: 18px 16px; overflow: visible; border-width: 1px; box-shadow: 0 14px 34px rgb(0 0 0 / 28%); }
   .decision-panel h1 { margin: 3px 0 5px; font-size: 23px; }
   .decision-panel__lead { margin-bottom: 10px; font-size: 11px; }
   .placement-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
@@ -191,10 +191,70 @@
 
 @media (max-width: 360px) {
   .player-card { min-width: 190px; }
-  .decision-panel { max-height: 47svh; padding-inline: 12px; }
+  .decision-panel { padding-inline: 12px; }
   .decision-panel__lead { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+.new-game { min-height: 100vh; padding: 24px; display: grid; place-items: center; color: #f7ead1; background: radial-gradient(circle at top, #25564a, #0d2824 70%); }
+.new-game__card { width: min(520px, 100%); padding: clamp(24px, 5vw, 48px); display: grid; gap: 14px; border: 1px solid #d5ad58; background: #f2e2c2; color: #493625; box-shadow: 0 24px 60px rgb(0 0 0 / 35%); }
+.new-game__card h1 { margin: 0; font: 700 34px/1.1 Georgia, "Noto Serif SC", serif; }
+.new-game__card label, .decision-panel label { display: grid; gap: 5px; color: #624b36; font-size: 13px; font-weight: 700; }
+.new-game__card input, .new-game__card select, .decision-panel input, .decision-panel select { min-height: 42px; padding: 8px; border: 1px solid #b99a65; color: #493625; background: #fff8e8; font: inherit; }
+.game-boat, .game-token { position: absolute; display: grid; place-items: center; transform-origin: center; }
+.game-boat { width: 38px; height: 28px; border: 2px solid #ffe3a1; border-radius: 50% 50% 42% 42%; color: #fff8dc; background: #81503b; box-shadow: 0 3px 7px rgb(0 0 0 / 48%); font-weight: 900; }
+.game-token { width: 25px; height: 25px; border: 2px solid #fff2cb; border-radius: 50%; color: #fff; background: #b84b35; box-shadow: 0 2px 5px rgb(0 0 0 / 50%); font-size: 10px; font-weight: 900; }
+.game-hotspot { position: absolute; width: 28px; height: 28px; border: 2px solid #fff2cb; border-radius: 50%; color: #fff; background: #b84b35; box-shadow: 0 0 0 4px rgb(184 75 53 / 30%); cursor: pointer; font-weight: 900; }
+.boat-share { position: absolute; width: clamp(38px, 7vw, 66px); aspect-ratio: 221 / 568; margin: 0; transform-origin: center; filter: drop-shadow(0 3px 5px rgb(0 0 0 / 45%)); }
+.boat-share > img:first-child { display: block; width: 100%; height: 100%; }
+.boat-share > strong { position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; text-shadow: 0 1px 2px #101b18; }
+.share-player, .board-player { position: absolute; height: auto; opacity: 1; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 55%)); pointer-events: none; }
+.share-slot { position: absolute; width: 24px; height: 24px; border: 2px solid #fff6d9; border-radius: 50%; color: #fff; background: rgb(184 75 53 / 88%); cursor: pointer; font-weight: 900; }
+.berthed-share { position: absolute; display: grid; place-items: center; width: 42px; min-height: 30px; padding: 3px; border: 1px solid currentColor; background: rgb(14 37 31 / 78%); font-size: 9px; font-weight: 900; text-align: center; }
+.commodity--nutmeg { color: #b87545; }
+.commodity--silk { color: #5d9be6; }
+.commodity--jade { color: #57b987; }
+.commodity--ginseng { color: #d8b75c; }
+.option-list { display: grid; gap: 8px; margin: 12px 0; }
+.option-list button, .shares-button { min-height: 44px; padding: 9px 12px; border: 1px solid #b79561; color: #493625; background: #fff8e8; text-align: left; cursor: pointer; }
+.option-list button.is-selected { border-color: #b84b35; box-shadow: inset 3px 0 #b84b35; }
+.placement-groups { display: grid; gap: 16px; margin-top: 16px; }
+.placement-group { padding-top: 14px; border-top: 1px solid rgb(183 149 97 / 52%); }
+.placement-group:first-child { padding-top: 0; border-top: 0; }
+.placement-group h2 { margin: 0; color: #b78137; font-size: 14px; letter-spacing: .08em; }
+.placement-group .option-list { margin: 8px 0 0; }
+.placement-option__area { color: #a55a3e; font-weight: 800; }
+.placement-option__area--port { color: #397a8d; }
+.placement-option__area--shipyard { color: #8d6c41; }
+.placement-option__cost { color: #80684c; font-size: .9em; }
+.decision-panel .quiet-action { width: 100%; margin-top: 10px; color: #493625; border-color: #b79561; background: transparent; }
+.collateral { margin: 12px 0; border: 1px dashed #b79561; }
+.collateral label { display: inline-flex; align-items: center; margin-right: 10px; }
+.collateral input { min-height: auto; }
+.rule-error { padding: 10px; color: #8c281c; border: 1px solid #b84b35; background: #ffe5d7; }
+.cargo-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.cargo-cards article { position: relative; min-width: 0; padding: 6px; border: 1px solid #b79561; background: #f2e2c2; color: #493625; }
+.cargo-cards img { width: 100%; display: block; aspect-ratio: 221 / 568; object-fit: contain; object-position: top; }
+.cargo-cards strong { display: block; font-size: 11px; }
+.cargo-token { position: absolute; display: grid; width: 20px; height: 20px; place-items: center; border-radius: 50%; color: #fff; background: #b84b35; font-size: 10px; }
+.shares-button { position: fixed; z-index: 24; right: 18px; bottom: 18px; color: #f7ead1; border-color: #d5ad58; background: #153a33; }
+.standings { width: min(520px, calc(100% - 32px)); margin: 20px auto; padding: 20px; color: #493625; background: #f2e2c2; }
+.dialog-card { width: min(560px, calc(100% - 32px)); max-height: 88vh; overflow: auto; padding: 26px; color: #493625; background: #f2e2c2; box-shadow: 0 24px 60px rgb(0 0 0 / 40%); }
+.overlay-scrim { align-items: center; justify-content: center; }
+.handoff-stage { position: fixed; z-index: 60; inset: 0; }
+.handoff-card { position: relative; }
+
+@media (min-width: 900px) {
+  .demo-workspace { min-height: 0; }
+  .board-panel { min-height: 0; }
+  .board-stage { flex: 0 1 auto; width: min(100%, calc((100vh - 270px) * .509)); max-height: calc(100vh - 270px); }
+}
+
+@media (max-width: 899px) {
+  .cargo-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shares-button { right: 12px; bottom: 12px; min-height: 44px; }
+  .decision-panel { padding-bottom: 62px; }
 }

@@ -445,6 +445,50 @@ function advancePlacementTurn(state: GameState, actorId: string): void {
   }
 }
 
+function launchStartPositionTriples(): Array<[number, number, number]> {
+  const triples: Array<[number, number, number]> = []
+  for (let first = 0; first <= 5; first += 1) {
+    for (let second = 0; second <= 5; second += 1) {
+      const third = 9 - first - second
+      if (third >= 0 && third <= 5) triples.push([first, second, third])
+    }
+  }
+  return triples
+}
+
+function legalPilotMoves(state: GameState, kind: 'smallPilot' | 'largePilot'): Array<Array<{ boatId: string; delta: -2 | -1 | 1 | 2 }>> {
+  const boats = state.boats.filter((boat) => boat.status === 'sailing' && boat.position !== null)
+  const moves: Array<Array<{ boatId: string; delta: -2 | -1 | 1 | 2 }>> = [[]]
+  if (kind === 'smallPilot') {
+    for (const boat of boats) {
+      for (const delta of [-1, 1] as const) {
+        if ((boat.position ?? 0) + delta >= 0) moves.push([{ boatId: boat.id, delta }])
+      }
+    }
+    return moves
+  }
+  for (const boat of boats) {
+    for (const delta of [-2, -1, 1, 2] as const) {
+      if ((boat.position ?? 0) + delta >= 0) moves.push([{ boatId: boat.id, delta }])
+    }
+  }
+  for (let index = 0; index < boats.length; index += 1) {
+    for (let next = index + 1; next < boats.length; next += 1) {
+      const first = boats[index]
+      const second = boats[next]
+      if (!first || !second) continue
+      for (const firstDelta of [-1, 1] as const) {
+        for (const secondDelta of [-1, 1] as const) {
+          if ((first.position ?? 0) + firstDelta >= 0 && (second.position ?? 0) + secondDelta >= 0) {
+            moves.push([{ boatId: first.id, delta: firstDelta }, { boatId: second.id, delta: secondDelta }])
+          }
+        }
+      }
+    }
+  }
+  return moves
+}
+
 export function getDecision(state: GameState): Decision | null {
   const { phase } = state
   if (phase.kind === 'gameOver') return null
@@ -473,7 +517,14 @@ export function getDecision(state: GameState): Decision | null {
     }
   }
   if (phase.kind === 'cargoSelection') return { kind: 'cargoSelection', playerId: phase.playerId, commodities: COMMODITIES }
-  if (phase.kind === 'launch') return { kind: 'launch', playerId: phase.playerId, boatIds: state.boats.map((boat) => boat.id), commodities: [...state.selectedCommodities] }
+  if (phase.kind === 'launch') return {
+    kind: 'launch',
+    playerId: phase.playerId,
+    boatIds: state.boats.map((boat) => boat.id),
+    commodities: [...state.selectedCommodities],
+    lanes: [0, 1, 2],
+    startPositionTriples: launchStartPositionTriples(),
+  }
   if (phase.kind === 'placement') {
     const player = playerById(state, phase.playerId)
     const options = placementOptions(state)
@@ -493,7 +544,12 @@ export function getDecision(state: GameState): Decision | null {
     return { kind: 'movementOrder', playerId: phase.playerId, movementRound: phase.movementRound, dice: phase.dice, remainingBoatIds: phase.remainingBoatIds }
   }
   if (phase.kind === 'smallPilot' || phase.kind === 'largePilot') {
-    return { kind: phase.kind, playerId: phase.playerId, movableBoatIds: state.boats.filter((boat) => boat.status === 'sailing').map((boat) => boat.id) }
+    return {
+      kind: phase.kind,
+      playerId: phase.playerId,
+      movableBoatIds: state.boats.filter((boat) => boat.status === 'sailing').map((boat) => boat.id),
+      legalMoves: legalPilotMoves(state, phase.kind),
+    }
   }
   if (phase.kind === 'pirateBoarding') {
     const token = state.accomplices.find((candidate) => candidate.id === phase.accompliceId)

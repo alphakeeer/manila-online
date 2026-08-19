@@ -168,6 +168,8 @@ export interface LaunchDecision {
   playerId: string
   boatIds: string[]
   commodities: Commodity[]
+  lanes: readonly Lane[]
+  startPositionTriples: ReadonlyArray<readonly [number, number, number]>
 }
 
 export interface PlacementOption {
@@ -202,6 +204,7 @@ export interface PilotMove {
 interface PilotDecisionBase {
   playerId: string
   movableBoatIds: string[]
+  legalMoves: ReadonlyArray<readonly PilotMove[]>
 }
 
 export type PilotDecision =

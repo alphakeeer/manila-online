@@ -38,4 +38,27 @@ describe('ManilaDemo', () => {
     await user.click(confirm)
     expect(screen.getByRole('status')).toHaveTextContent('已选择：人参舢板')
   })
+
+  test('previews hot-seat privacy and information scenes', async () => {
+    const user = userEvent.setup()
+    render(<ManilaDemo />)
+
+    await user.click(screen.getByRole('button', { name: '演示交接' }))
+    expect(screen.getByRole('dialog', { name: '玩家交接' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '玩家状态' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '游戏桌面' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '确认接手' }))
+    expect(screen.queryByRole('dialog', { name: '玩家交接' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '我的股份' }))
+    expect(screen.getByRole('dialog', { name: '我的股份' })).toBeInTheDocument()
+    expect(screen.getAllByRole('img', { name: /股份$/ })).toHaveLength(3)
+    await user.click(screen.getByRole('button', { name: '关闭股份' }))
+
+    await user.click(screen.getByRole('button', { name: '演示结算' }))
+    expect(screen.getByRole('dialog', { name: '航程结算' })).toBeInTheDocument()
+    expect(screen.getByText('黑市行情表')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '返回版图' }))
+    expect(screen.queryByRole('dialog', { name: '航程结算' })).not.toBeInTheDocument()
+  })
 })

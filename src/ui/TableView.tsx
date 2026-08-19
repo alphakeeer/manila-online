@@ -7,9 +7,12 @@ interface TableViewProps {
   confirmedPlacementId: string | null
   onSelectPlacement: (placementId: string) => void
   onConfirmPlacement: () => void
+  onOpenHandoff: () => void
+  onOpenShares: () => void
+  onOpenSettlement: () => void
 }
 
-export function TableView({ state, selectedPlacementId, confirmedPlacementId, onSelectPlacement, onConfirmPlacement }: TableViewProps) {
+export function TableView({ state, selectedPlacementId, confirmedPlacementId, onSelectPlacement, onConfirmPlacement, onOpenHandoff, onOpenShares, onOpenSettlement }: TableViewProps) {
   const currentPlayer = state.players.find((player) => player.id === state.currentPlayerId) ?? state.players[0]
   const confirmedPlacement = state.placements.find((placement) => placement.id === confirmedPlacementId)
 
@@ -34,6 +37,13 @@ export function TableView({ state, selectedPlacementId, confirmedPlacementId, on
           </li>
         ))}
       </ol>
+
+      <nav className="demo-toolbar" aria-label="视觉演示场景">
+        <span>视觉演示</span>
+        <button type="button" onClick={onOpenHandoff}>演示交接</button>
+        <button type="button" onClick={onOpenShares}>我的股份</button>
+        <button type="button" onClick={onOpenSettlement}>演示结算</button>
+      </nav>
 
       <section className="demo-workspace" aria-label="游戏桌面">
         <section className="board-panel" aria-label="游戏版图">
@@ -65,7 +75,7 @@ export function TableView({ state, selectedPlacementId, confirmedPlacementId, on
 
       <nav className="mobile-nav" aria-label="游戏导航">
         <button type="button" className="is-active"><span aria-hidden="true">◈</span>版图</button>
-        <button type="button"><span aria-hidden="true">▤</span>我的股份</button>
+        <button type="button" aria-label="在游戏导航中打开我的股份" onClick={onOpenShares}><span aria-hidden="true">▤</span>我的股份</button>
         <button type="button"><span aria-hidden="true">◎</span>玩家</button>
       </nav>
     </main>

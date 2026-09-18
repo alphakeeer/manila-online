@@ -2,9 +2,11 @@ import cookie from '@fastify/cookie'
 import type { IncomingHttpHeaders } from 'node:http'
 import {
   CreateRoomRequestSchema,
+  GameCommandRequestSchema,
   JoinRoomRequestSchema,
   LeaveRoomRequestSchema,
   LoginRequestSchema,
+  StartGameRequestSchema,
   SetPirateVariantRequestSchema,
   SetReadyRequestSchema,
   SessionResponseSchema,
@@ -23,6 +25,7 @@ import {
 import type { ServerConfig } from './config.js'
 import { migrationsAreCurrent } from './persistence/migrations.js'
 import { LobbyService, type CommandResult, type LobbyErrorCode } from './lobby/service.js'
+import { GameService, type GameCommandResult, type GameErrorCode } from './game/service.js'
 
 export interface ServerDependencies {
   pool: Pool
@@ -66,12 +69,31 @@ function commandStatus(code: LobbyErrorCode) {
   }
 }
 
+function gameStatus(code: GameErrorCode) {
+  switch (code) {
+    case 'AUTH_REQUIRED':
+    case 'TOKEN_REVOKED': return 401
+    case 'NOT_HOST': return 403
+    case 'NOT_MEMBER':
+    case 'ROOM_NOT_FOUND':
+    case 'GAME_NOT_FOUND': return 404
+    case 'RULE_REJECTED':
+    case 'START_NOT_READY':
+    case 'ROOM_CLOSED':
+    case 'ROOM_ISOLATED':
+    case 'REVISION_CONFLICT':
+    case 'COMMAND_ID_REUSED':
+    case 'ACTION_NOT_AVAILABLE': return 409
+  }
+}
+
 export function buildServer(config: ServerConfig, dependencies: ServerDependencies): FastifyInstance {
   const app = Fastify({ logger })
   const clock = dependencies.clock ?? Date
   const loginLimiter = new FixedWindowRateLimiter(5, 60_000, clock)
   const sessionWriteLimiter = new FixedWindowRateLimiter(30, 60_000, clock)
   const lobby = new LobbyService(dependencies.pool, config.authPepper, () => clock.now())
+  const game = new GameService(dependencies.pool, config.authPepper, () => clock.now())
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'strict' as const,
@@ -130,6 +152,11 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   function sendCommand(reply: Parameters<typeof sendError>[0], result: CommandResult) {
     if (result.kind === 'accepted') return result.snapshot
     return sendError(reply, commandStatus(result.code), result.code)
+  }
+
+  function sendGame(reply: Parameters<typeof sendError>[0], result: GameCommandResult) {
+    if (result.kind === 'accepted') return result.snapshot
+    return sendError(reply, gameStatus(result.code), result.code)
   }
 
   app.get('/health/live', async () => ({ status: 'ok' }))
@@ -249,6 +276,31 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
     const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
     return sendCommand(reply, await lobby.leaveRoom(session.id, roomCode, parsed.data))
+  })
+
+  app.get('/api/rooms/:roomCode/snapshot', async (request, reply) => {
+    const session = await authenticate(request, reply)
+    if (!session) return reply
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendGame(reply, await game.latest(session.id, roomCode))
+  })
+
+  app.post('/api/rooms/:roomCode/start', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = StartGameRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendGame(reply, await game.start(session.id, roomCode, parsed.data))
+  })
+
+  app.post('/api/rooms/:roomCode/commands', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = GameCommandRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendGame(reply, await game.command(session.id, roomCode, parsed.data))
   })
 
   return app

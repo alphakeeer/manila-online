@@ -29,6 +29,7 @@ describe('PostgreSQL migrations', () => {
       expect(result.rows).toEqual([
         { id: '001_access_tokens_and_sessions.sql' },
         { id: '002_rooms_and_commands.sql' },
+        { id: '003_games_and_events.sql' },
       ])
     } finally {
       await pool.end()

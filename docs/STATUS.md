@@ -7,7 +7,7 @@
 
 | 范围 | 实际状态 | 证据 |
 | --- | --- | --- |
-| 规则 | 纯 TS 状态机、3–5 人、两种海盗规则、财务/结算/终局已实现；存在下述两个复现缺陷 | [engine](../packages/game/src/engine.ts)、[setup](../packages/game/src/setup.ts)、[types](../packages/game/src/types.ts) |
+| 规则 | 纯 TS 状态机、3–5 人、两种海盗规则、财务/结算/终局已实现；Phase 0 已修复已复现的 B01/B02 | [engine](../packages/game/src/engine.ts)、[setup](../packages/game/src/setup.ts)、[types](../packages/game/src/types.ts) |
 | 随机性 | 状态内 Mulberry32 RNG，可重现；浏览器新局 seed 固定为 20260819 | [rng](../packages/game/src/rng.ts)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
 | UI | 仍为本地热座，React useState 保存完整 GameState，直接调用 createGame/transition/getDecision | [App](../apps/web/src/App.tsx)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
 | 决策 | 十类 Decision 有基础 UI；独立 mortgageShare/redeemShare 无入口 | [DecisionPanel](../apps/web/src/ui/DecisionPanel.tsx)、[types](../packages/game/src/types.ts) |
@@ -46,7 +46,7 @@ Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 
 | ID | 证据与影响 | 计划 |
 | --- | --- | --- |
 | B01 已修复 | 小领航员将最后一艘船送入港后，`rollDice` 识别空待移动集合并直接完成第三轮结算，不生成卡死 phase 或消耗额外 RNG。seed 347 动作链覆盖标准/加强海盗，seed 1413 覆盖第二轮全到港与最终领航机会。 | [T02](tasks/T02-movement-liveness.md) |
-| B02 已复现 | 初始 30，出价 31 并声明一张抵押；拍卖结束前独立抵押同一股份，其他人放弃后余额 23（应为 30+12−31=11）。[engine.finishAuction](../packages/game/src/engine.ts) 再次 applyMortgages，重复发放 12 | [T03](tasks/T03-auction-finance.md) |
+| B02 已修复 | 竞拍结算仅为尚未抵押的声明股份发放贷款；seed 31 的独立抵押再获胜序列最终余额为 11。最高出价者的赎回若使“现金 + 尚待执行声明抵押”不足支付，则被拒绝，结算也保留防止负现金的校验。 | [T03](tasks/T03-auction-finance.md) |
 | U01 代码证据 | 决策输入 bid 初值总为 1，可能低于 minimumBid；同一玩家连续阶段本地字段不重置 | [T08](tasks/T08-live-auction.md)、[T11](tasks/T11-placement.md) |
 | U02 代码证据 | 版图热点固定 mortgageShareIds=[]，不带 stowaway；与面板行为不同 | [T11](tasks/T11-placement.md) |
 | U03 代码证据 | 私人股份仅文字；独立抵押/赎回不可操作 | [T13](tasks/T13-finance.md) |
@@ -72,9 +72,10 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - 本轮规划：完成文档拆分、代码核验和任务设计；提交由 Git 历史记录。
 - T01：done / `ad1081d` / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
 - T02：done / `1ca5d47` / 窄回归 11 项、全套 46 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；第三轮无船时不再掷骰，正常航程的既有 RNG 顺序不变。
-- T03–T19：TODO。
-- 当前可启动：T03。
-- MVP 尚不可公网发布；下一项执行 T03。
+- T03：done / `7d886b3` / 窄回归 15 项、全套 51 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；重复抵押不再重复放款，竞拍承诺期间的赎回不会造成负现金。
+- T04–T19：TODO。
+- 当前可启动：T04。
+- MVP 尚不可公网发布；Phase 0 已完成，下一项执行 T04。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。
 修改功能所在路径时同步本页证据链接；审计数字保留其日期，新增验证另记，避免覆盖历史事实。

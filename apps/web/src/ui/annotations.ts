@@ -1,4 +1,4 @@
-import rawAnnotations from '../../annotator/board-and-shares-annotations.json'
+import rawAnnotations from '../../../../annotator/board-and-shares-annotations.json'
 import type { CSSProperties } from 'react'
 
 export interface AnnotationItem {

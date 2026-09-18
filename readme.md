@@ -19,8 +19,8 @@
 
 ## 当前目录与运行
 
-- `src/game/`：规则、seed RNG、不变量和模拟；[规则依据](马尼拉_中文规则_翻译.md)、[术语表](马尼拉_术语表.md)。
-- `src/ui/`：真实规则驱动的本地热座原型、版图和行情轨道。
+- `packages/game/src/`：规则、seed RNG、不变量和模拟；[规则依据](马尼拉_中文规则_翻译.md)、[术语表](马尼拉_术语表.md)。
+- `apps/web/src/`：真实规则驱动的本地热座原型、版图和行情轨道。
 - `scripts/simulate.ts`：随机整局验收；不是产品 AI。
 - `annotator/`：静态标注工具和语义坐标 JSON；可直接打开 `annotator/index.html`，导入已有 JSON 后编辑。
 - `manila_assets/`：原始图片；后续压缩资源时保留原图。

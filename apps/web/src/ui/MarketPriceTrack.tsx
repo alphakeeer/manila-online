@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { Commodity, GameState } from '../game'
+import type { Commodity, GameState } from '@manila/game'
 import { commodityPresentation } from './commodityPresentation'
 
 const sourceSize = { width: 1112, height: 2183 }

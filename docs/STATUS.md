@@ -7,19 +7,19 @@
 
 | 范围 | 实际状态 | 证据 |
 | --- | --- | --- |
-| 规则 | 纯 TS 状态机、3–5 人、两种海盗规则、财务/结算/终局已实现；存在下述两个复现缺陷 | [engine](../src/game/engine.ts)、[setup](../src/game/setup.ts)、[types](../src/game/types.ts) |
-| 随机性 | 状态内 Mulberry32 RNG，可重现；浏览器新局 seed 固定为 20260819 | [rng](../src/game/rng.ts)、[ManilaApp](../src/ui/ManilaApp.tsx) |
-| UI | 仍为本地热座，React useState 保存完整 GameState，直接调用 createGame/transition/getDecision | [App](../src/App.tsx)、[ManilaApp](../src/ui/ManilaApp.tsx) |
-| 决策 | 十类 Decision 有基础 UI；独立 mortgageShare/redeemShare 无入口 | [DecisionPanel](../src/ui/DecisionPanel.tsx)、[types](../src/game/types.ts) |
-| 版图/行情 | 真实状态驱动、标注坐标、行情动画已经提交，非未跟踪实验 | [GameBoard](../src/ui/GameBoard.tsx)、[MarketPriceTrack](../src/ui/MarketPriceTrack.tsx) |
+| 规则 | 纯 TS 状态机、3–5 人、两种海盗规则、财务/结算/终局已实现；存在下述两个复现缺陷 | [engine](../packages/game/src/engine.ts)、[setup](../packages/game/src/setup.ts)、[types](../packages/game/src/types.ts) |
+| 随机性 | 状态内 Mulberry32 RNG，可重现；浏览器新局 seed 固定为 20260819 | [rng](../packages/game/src/rng.ts)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
+| UI | 仍为本地热座，React useState 保存完整 GameState，直接调用 createGame/transition/getDecision | [App](../apps/web/src/App.tsx)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
+| 决策 | 十类 Decision 有基础 UI；独立 mortgageShare/redeemShare 无入口 | [DecisionPanel](../apps/web/src/ui/DecisionPanel.tsx)、[types](../packages/game/src/types.ts) |
+| 版图/行情 | 真实状态驱动、标注坐标、行情动画已经提交，非未跟踪实验 | [GameBoard](../apps/web/src/ui/GameBoard.tsx)、[MarketPriceTrack](../apps/web/src/ui/MarketPriceTrack.tsx) |
 | 标注器 | 独立原生 JS，localStorage 保存的是坐标，不是游戏存档 | [annotator](../annotator/app.js)、[JSON](../annotator/board-and-shares-annotations.json) |
 | 网络与身份 | 无 server、protocol、房间、Token、Cookie 会话、WS、服务端隐私投影 | [package.json](../package.json)、当前 src 文件结构 |
-| 存储与运维 | 无数据库、迁移、CI、容器、部署配置或 E2E 框架 | [vite.config](../vite.config.ts)、[package.json](../package.json)、Git 跟踪文件 |
+| 存储与运维 | 无数据库、迁移、CI、容器、部署配置或 E2E 框架 | [vite.config](../apps/web/vite.config.ts)、[package.json](../package.json)、Git 跟踪文件 |
 | 工具链 | React 19、TS 5.8、Vite 7、Vitest 3、Testing Library/jsdom；TS strict | [package.json](../package.json)、[tsconfig](../tsconfig.json) |
 
 关键历史：b918b33 引入引擎；71b5e81 接入真实决策面板；2579595 清理固定 Demo 并确立在线目标。
 Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 已删除，无需重复清理。
-在 src/scripts/annotator 与构建配置中检索 TODO/FIXME/mock/placeholder/stub/demo 未命中；这不证明功能完备。原型确实调用规则引擎，并非 Mock 在线服务，联网能力是完全缺失而非隐藏开关。
+在 `apps/web/`、`packages/game/`、scripts、annotator 与构建配置中检索 TODO/FIXME/mock/placeholder/stub/demo 未命中；这不证明功能完备。原型确实调用规则引擎，并非 Mock 在线服务，联网能力是完全缺失而非隐藏开关。
 当前仍有少量展示映射重复、压缩单行组件和坐标硬编码；随网络视图改造收敛，不单独大重构。
 
 ## 2. 本次验证
@@ -35,7 +35,7 @@ Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 
 | 构建资源 | CSS 12.36 kB，JS 252.50 kB（gzip 77.89 kB），五张棋子各约 2.3–2.5 MB，原图被广泛打包 |
 | 文档一致性 | 25 份 Markdown、19 个任务：本地链接有效，六项任务字段齐全，依赖无环且全部收录路线图；另人工核对身份/同步/阶段口径 |
 
-模拟通过 Node + tsx 调用 [simulation.ts](../src/game/simulation.ts) 的 runAcceptanceSimulation；
+模拟通过 Node + tsx 调用 [simulation.ts](../packages/game/src/simulation.ts) 的 runAcceptanceSimulation；
 可用当前 npm run simulate -- --games 20 --players N --seed 20260918 分别复跑。
 模拟策略不主动 mortgage/redeem，领航员策略仅前移/放弃，不能据此宣布全部规则正确。
 本轮未做浏览器外观/移动设备验收、npm 安全审计或公网网络测试。
@@ -45,8 +45,8 @@ Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 
 
 | ID | 证据与影响 | 计划 |
 | --- | --- | --- |
-| B01 已复现 | 两船在港，最后一船 13 格，小领航员 +1 后进入 movementOrder(round=3, remainingBoatIds=[])，无推进动作；前后不变量合法。[engine.rollDice](../src/game/engine.ts) 没处理空移动集合 | [T02](tasks/T02-movement-liveness.md) |
-| B02 已复现 | 初始 30，出价 31 并声明一张抵押；拍卖结束前独立抵押同一股份，其他人放弃后余额 23（应为 30+12−31=11）。[engine.finishAuction](../src/game/engine.ts) 再次 applyMortgages，重复发放 12 | [T03](tasks/T03-auction-finance.md) |
+| B01 已复现 | 两船在港，最后一船 13 格，小领航员 +1 后进入 movementOrder(round=3, remainingBoatIds=[])，无推进动作；前后不变量合法。[engine.rollDice](../packages/game/src/engine.ts) 没处理空移动集合 | [T02](tasks/T02-movement-liveness.md) |
+| B02 已复现 | 初始 30，出价 31 并声明一张抵押；拍卖结束前独立抵押同一股份，其他人放弃后余额 23（应为 30+12−31=11）。[engine.finishAuction](../packages/game/src/engine.ts) 再次 applyMortgages，重复发放 12 | [T03](tasks/T03-auction-finance.md) |
 | U01 代码证据 | 决策输入 bid 初值总为 1，可能低于 minimumBid；同一玩家连续阶段本地字段不重置 | [T08](tasks/T08-live-auction.md)、[T11](tasks/T11-placement.md) |
 | U02 代码证据 | 版图热点固定 mortgageShareIds=[]，不带 stowaway；与面板行为不同 | [T11](tasks/T11-placement.md) |
 | U03 代码证据 | 私人股份仅文字；独立抵押/赎回不可操作 | [T13](tasks/T13-finance.md) |
@@ -70,9 +70,10 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 [任务索引和依赖](ROADMAP.md) 描述计划，不代表完成；task 文件描述验收，不另设易漂移的状态字段。
 
 - 本轮规划：完成文档拆分、代码核验和任务设计；提交由 Git 历史记录。
-- T01–T19：全部 TODO。
-- 当前可启动：T01；T02/T03 可以先调查，但修改路径以 T01 迁移完成为准。
-- MVP 尚不可公网发布；下一项执行 T01。
+- T01：done / 提交待写入 / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
+- T02–T19：TODO。
+- 当前可启动：T02、T03；两者修改同一引擎文件，按路线图串行执行。
+- MVP 尚不可公网发布；下一项执行 T02。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。
 修改功能所在路径时同步本页证据链接；审计数字保留其日期，新增验证另记，避免覆盖历史事实。

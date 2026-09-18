@@ -18,4 +18,4 @@
 - 每次聚焦一个任务；新增范围先更新对应任务和架构依据。
 - 完成后在 STATUS 记录任务 ID、提交和验证证据；同步发生变化的链接，勿把计划写成已完成。
 
-当前入口与命令见 [readme.md](readme.md)。现有 `src/game/` 是规则源码；未来目录见 ARCHITECTURE。
+当前入口与命令见 [readme.md](readme.md)。现有 `packages/game/src/` 是规则源码；未来目录见 ARCHITECTURE。

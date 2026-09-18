@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createGame, getDecision, getStandings, transition, validateState, type Commodity, type GameAction, type GameConfig, type GameState, type PirateVariant } from '../game'
+import { createGame, getDecision, getStandings, transition, validateState, type Commodity, type GameAction, type GameConfig, type GameState, type PirateVariant } from '@manila/game'
 import { DecisionPanel } from './DecisionPanel'
 import { GameBoard } from './GameBoard'
 import './manila.css'

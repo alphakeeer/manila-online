@@ -1,4 +1,4 @@
-import { runAcceptanceSimulation } from '../src/game/simulation'
+import { runAcceptanceSimulation } from '@manila/game/simulation'
 
 function argument(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`)

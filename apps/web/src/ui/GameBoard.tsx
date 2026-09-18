@@ -1,9 +1,9 @@
-import type { AccompliceLocation, Commodity, Decision, GameAction, GameState } from '../game'
+import type { AccompliceLocation, Commodity, Decision, GameAction, GameState } from '@manila/game'
 import { annotationDocument, findBoardPosition, findCargoSlotPosition, playerPositionStyle, positionStyle } from './annotations'
 import { commodityPresentation } from './commodityPresentation'
 import { MarketPriceTrack } from './MarketPriceTrack'
 
-const asset = (file: string) => new URL(`../../manila_assets/${file}`, import.meta.url).href
+const asset = (file: string) => new URL(`../../../../manila_assets/${file}`, import.meta.url).href
 const laneName = ['left', 'center', 'right'] as const
 const shareCanvas = { jade: 'share-1', nutmeg: 'share-2', silk: 'share-3', ginseng: 'share-4' } as const
 const playerSprite = ['player_red.png', 'player_yellow.png', 'player_green.png', 'player_purple.png', 'player_blue.png']

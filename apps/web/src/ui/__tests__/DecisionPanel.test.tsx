@@ -2,7 +2,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, test } from 'vitest'
-import { createGame, type Decision } from '../../game'
+import { createGame, type Decision } from '@manila/game'
 import { DecisionPanel } from '../DecisionPanel'
 
 afterEach(cleanup)

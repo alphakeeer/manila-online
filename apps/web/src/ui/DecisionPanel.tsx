@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Commodity, Decision, GameAction, GameState, PilotMove } from '../game'
+import type { Commodity, Decision, GameAction, GameState, PilotMove } from '@manila/game'
 import { commodityPresentation } from './commodityPresentation'
 
 const commodityName = { nutmeg: '肉豆蔻', silk: '丝绸', jade: '玉石', ginseng: '人参' } as const

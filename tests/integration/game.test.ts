@@ -71,6 +71,10 @@ describe('authoritative first auction', () => {
     expect(replay.json()).toEqual(accepted.json())
     const collision = await write(actor, `/api/rooms/${code}/commands`, { ...bid, action: { type: 'bid', amount: 2, mortgageShareIds: [] } })
     expect(collision.json()).toEqual({ code: 'COMMAND_ID_REUSED' })
+    await pool.query('UPDATE games SET protocol_version = 999 WHERE room_id = (SELECT id FROM rooms WHERE code = $1)', [code])
+    const isolated = await app.inject({ method: 'GET', url: `/api/rooms/${code}/snapshot`, headers: { cookie: actor } })
+    expect(isolated.json()).toEqual({ code: 'ROOM_ISOLATED' })
+    expect((await pool.query<{ status: string }>('SELECT status FROM rooms WHERE code = $1', [code])).rows[0]?.status).toBe('isolated')
   })
 
   it('rejects unprepared starts, stale concurrent commands, and unavailable actions without state mutation', async () => {

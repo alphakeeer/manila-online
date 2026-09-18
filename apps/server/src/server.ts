@@ -95,7 +95,7 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   const loginLimiter = new FixedWindowRateLimiter(5, 60_000, clock)
   const sessionWriteLimiter = new FixedWindowRateLimiter(30, 60_000, clock)
   const lobby = new LobbyService(dependencies.pool, config.authPepper, () => clock.now())
-  const game = new GameService(dependencies.pool, config.authPepper, () => clock.now())
+  const game = new GameService(dependencies.pool, config.authPepper, () => clock.now(), (roomCode) => app.log.error({ roomCode }, 'isolated invalid game snapshot'))
   const hub = new RoomHub(game)
   const heartbeatLimiter = new FixedWindowRateLimiter(6, 60_000, clock)
   const cookieOptions = {

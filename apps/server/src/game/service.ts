@@ -97,7 +97,7 @@ function publicEvents(events: GameEvent[], roomMembers: MemberRow[]): Array<{ ev
 }
 
 export class GameService {
-  constructor(private readonly pool: Pool, private readonly pepper: string, private readonly now: () => number = Date.now) {}
+  constructor(private readonly pool: Pool, private readonly pepper: string, private readonly now: () => number = Date.now, private readonly onIsolate: (roomCode: string) => void = () => undefined) {}
 
   async latest(sessionId: string, roomCode: string): Promise<GameCommandResult> {
     return withTransaction(this.pool, async (client) => {
@@ -114,7 +114,10 @@ export class GameService {
       const result = await client.query<GameRow>('SELECT snapshot, seed, state_version, rules_version, protocol_version FROM games WHERE room_id = $1', [room.id])
       const game = result.rows[0]
       if (!game) return reject('GAME_NOT_FOUND')
-      if (game.state_version !== 1 || game.rules_version !== RULES_VERSION || game.protocol_version !== PROTOCOL_VERSION || validateState(game.snapshot).length > 0) return reject('ROOM_ISOLATED')
+      if (this.invalidGame(game)) {
+        await this.isolate(client, room)
+        return reject('ROOM_ISOLATED')
+      }
       return { kind: 'accepted', snapshot: project(room, game.snapshot, roomMembers, viewer) }
     })
   }
@@ -172,7 +175,10 @@ export class GameService {
       const row = await client.query<GameRow>('SELECT snapshot, seed, state_version, rules_version, protocol_version FROM games WHERE room_id = $1 FOR UPDATE', [room.id])
       const game = row.rows[0]
       if (!game) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'GAME_NOT_FOUND')
-      if (game.state_version !== 1 || game.rules_version !== RULES_VERSION || game.protocol_version !== PROTOCOL_VERSION || validateState(game.snapshot).length > 0) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_ISOLATED')
+      if (this.invalidGame(game)) {
+        await this.isolate(client, room)
+        return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_ISOLATED')
+      }
       const action: GameAction = input.action.type === 'bid'
         ? { type: 'bid', playerId: viewer.player_id, amount: input.action.amount, mortgageShareIds: input.action.mortgageShareIds }
         : { type: 'passAuction', playerId: viewer.player_id }
@@ -193,5 +199,16 @@ export class GameService {
     const result = reject(code)
     await saveCommand(client, room.id, sessionId, commandId, requestDigest, result, null)
     return result
+  }
+
+  private invalidGame(game: GameRow) {
+    return game.state_version !== 1 || game.rules_version !== RULES_VERSION || game.protocol_version !== PROTOCOL_VERSION || validateState(game.snapshot).length > 0
+  }
+
+  private async isolate(client: PoolClient, room: RoomRow) {
+    if (room.status === 'isolated') return
+    room.status = 'isolated'
+    await client.query('UPDATE rooms SET status = $1, isolation_reason = $2 WHERE id = $3', ['isolated', 'snapshot validation failed', room.id])
+    this.onIsolate(room.code)
   }
 }

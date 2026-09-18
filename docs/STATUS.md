@@ -74,8 +74,9 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T02：done / `1ca5d47` / 窄回归 11 项、全套 46 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；第三轮无船时不再掷骰，正常航程的既有 RNG 顺序不变。
 - T03：done / `7d886b3` / 窄回归 15 项、全套 51 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；重复抵押不再重复放款，竞拍承诺期间的赎回不会造成负现金。
 - T04：blocked / `ab0f398` / `npm ci`、`npm test`（13 文件、54 项）和 `npm run build` 通过；`npm run test:integration` 已提供真实 PostgreSQL 的首次/重复/失败回滚用例并在缺少 `TEST_DATABASE_URL` 时安全拒绝。当前开发机未安装 Docker，无法启动 Compose 的 `manila_test`，故真实数据库验收待 Docker Desktop 可用后执行。
-- T05–T19：TODO。
-- 当前可启动：T05（T04 实现已提交，真实 PostgreSQL 验收受本机 Docker 条件阻塞）。
+- T05：blocked / `57e8c13` / `npm test`（15 文件、60 项）、`npm run build` 通过；`npm run test:e2e` 在未提供运行中服务与临时 `E2E_ACCESS_TOKEN` 时按设计跳过。Token 规范化、domain-separated HMAC、生产 Cookie/Origin 配置和可控时钟限流有单元测试，真实 PostgreSQL 会话/API 与两浏览器上下文用例已写入 integration/E2E；Docker 不可用，尚未运行真实存储验收。
+- T06–T19：TODO。
+- 当前可启动：T06（T04/T05 实现已提交，真实 PostgreSQL 验收均受本机 Docker 条件阻塞）。
 - MVP 尚不可公网发布；Phase 0 已完成，下一项执行 T04。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。

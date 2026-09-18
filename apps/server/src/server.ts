@@ -1,5 +1,14 @@
 import cookie from '@fastify/cookie'
-import { LoginRequestSchema, SessionResponseSchema } from '@manila/protocol'
+import type { IncomingHttpHeaders } from 'node:http'
+import {
+  CreateRoomRequestSchema,
+  JoinRoomRequestSchema,
+  LeaveRoomRequestSchema,
+  LoginRequestSchema,
+  SetPirateVariantRequestSchema,
+  SetReadyRequestSchema,
+  SessionResponseSchema,
+} from '@manila/protocol'
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify'
 import type { Pool } from 'pg'
 import { digestAccessToken, digestSessionCredential, generateSessionCredential, generateSessionId } from './auth/credentials.js'
@@ -13,6 +22,7 @@ import {
 } from './auth/repository.js'
 import type { ServerConfig } from './config.js'
 import { migrationsAreCurrent } from './persistence/migrations.js'
+import { LobbyService, type CommandResult, type LobbyErrorCode } from './lobby/service.js'
 
 export interface ServerDependencies {
   pool: Pool
@@ -37,11 +47,31 @@ function validWriteOrigin(origin: string | undefined, config: ServerConfig) {
   return origin !== undefined && config.allowedOrigins.includes(origin)
 }
 
+function commandStatus(code: LobbyErrorCode) {
+  switch (code) {
+    case 'AUTH_REQUIRED':
+    case 'TOKEN_REVOKED':
+      return 401
+    case 'NOT_HOST':
+      return 403
+    case 'ROOM_NOT_FOUND':
+    case 'NOT_MEMBER':
+      return 404
+    case 'ROOM_FULL':
+    case 'ROOM_CLOSED':
+    case 'ALREADY_IN_ROOM':
+    case 'REVISION_CONFLICT':
+    case 'COMMAND_ID_REUSED':
+      return 409
+  }
+}
+
 export function buildServer(config: ServerConfig, dependencies: ServerDependencies): FastifyInstance {
   const app = Fastify({ logger })
   const clock = dependencies.clock ?? Date
   const loginLimiter = new FixedWindowRateLimiter(5, 60_000, clock)
   const sessionWriteLimiter = new FixedWindowRateLimiter(30, 60_000, clock)
+  const lobby = new LobbyService(dependencies.pool, config.authPepper, () => clock.now())
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'strict' as const,
@@ -78,6 +108,28 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
       sendError(reply, 503, 'STORAGE_UNAVAILABLE')
       return null
     }
+  }
+
+  async function authenticateWrite(
+    request: { headers: IncomingHttpHeaders; cookies: Record<string, string | undefined> },
+    reply: Parameters<typeof sendError>[0],
+  ) {
+    if (!validWriteOrigin(request.headers.origin, config)) {
+      sendError(reply, 403, 'ORIGIN_FORBIDDEN')
+      return null
+    }
+    const session = await authenticate(request, reply)
+    if (!session) return null
+    if (!sessionWriteLimiter.consume(session.id)) {
+      sendError(reply, 429, 'RATE_LIMITED')
+      return null
+    }
+    return session
+  }
+
+  function sendCommand(reply: Parameters<typeof sendError>[0], result: CommandResult) {
+    if (result.kind === 'accepted') return result.snapshot
+    return sendError(reply, commandStatus(result.code), result.code)
   }
 
   app.get('/health/live', async () => ({ status: 'ok' }))
@@ -136,14 +188,8 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   })
 
   app.delete('/api/session', async (request, reply) => {
-    if (!validWriteOrigin(request.headers.origin, config)) {
-      return sendError(reply, 403, 'ORIGIN_FORBIDDEN')
-    }
-    const session = await authenticate(request, reply)
+    const session = await authenticateWrite(request, reply)
     if (!session) return reply
-    if (!sessionWriteLimiter.consume(session.id)) {
-      return sendError(reply, 429, 'RATE_LIMITED')
-    }
     try {
       await revokeSession(dependencies.pool, session.id)
       reply.clearCookie(sessionCookieName, cookieOptions)
@@ -151,6 +197,58 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     } catch {
       return sendError(reply, 503, 'STORAGE_UNAVAILABLE')
     }
+  })
+
+  app.get('/api/lobby', async (request, reply) => {
+    const session = await authenticate(request, reply)
+    if (!session) return reply
+    return sendCommand(reply, await lobby.getLobby(session.id))
+  })
+
+  app.post('/api/rooms', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = CreateRoomRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    return sendCommand(reply, await lobby.createRoom(session.id, {
+      ...parsed.data,
+      pirateVariant: parsed.data.pirateVariant ?? 'standard',
+    }))
+  })
+
+  app.post('/api/rooms/join', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = JoinRoomRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    return sendCommand(reply, await lobby.joinRoom(session.id, parsed.data))
+  })
+
+  app.post('/api/rooms/:roomCode/ready', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = SetReadyRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendCommand(reply, await lobby.setReady(session.id, roomCode, parsed.data))
+  })
+
+  app.patch('/api/rooms/:roomCode/config', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = SetPirateVariantRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendCommand(reply, await lobby.setPirateVariant(session.id, roomCode, parsed.data))
+  })
+
+  app.delete('/api/rooms/:roomCode/members/me', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = LeaveRoomRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    return sendCommand(reply, await lobby.leaveRoom(session.id, roomCode, parsed.data))
   })
 
   return app

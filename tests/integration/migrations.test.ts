@@ -26,7 +26,10 @@ describe('PostgreSQL migrations', () => {
 
       expect(await migrationsAreCurrent(pool, migrationsDir)).toBe(true)
       const result = await pool.query('SELECT id FROM schema_migrations ORDER BY id')
-      expect(result.rows).toEqual([{ id: '001_access_tokens_and_sessions.sql' }])
+      expect(result.rows).toEqual([
+        { id: '001_access_tokens_and_sessions.sql' },
+        { id: '002_rooms_and_commands.sql' },
+      ])
     } finally {
       await pool.end()
     }

@@ -3,7 +3,7 @@
 目标是让本人和朋友持有效的 **8 位 Token**，通过各自浏览器进行 3–5 人 Manila。
 服务器保存并裁决权威游戏状态，客户端只展示状态和提交操作。
 
-规则引擎和本地热座原型仍在保留中。服务现已提供 Token 登录与持久 Cookie 会话；房间和线上同步将按路线图逐片接入。实际验证结果和已知问题见 [STATUS](docs/STATUS.md)。
+规则引擎和本地热座原型仍在保留中。服务现已提供 Token 登录、持久 Cookie 会话和持久大厅；实时同步与对局命令将按路线图逐片接入。实际验证结果和已知问题见 [STATUS](docs/STATUS.md)。
 
 ## 开发导航
 
@@ -22,6 +22,7 @@
 - `apps/web/src/`：真实规则驱动的本地热座原型、版图和行情轨道。
 - `apps/server/src/`：Fastify 进程、PostgreSQL 连接与 SQL migration runner；尚未提供登录业务。
 - `apps/server/migrations/`：按文件名排序、在单一事务中运行的数据库迁移。
+- `apps/server/src/lobby/`：房间、成员、revision 和命令去重的持久大厅事务。
 - `packages/protocol/src/`：登录、会话与稳定 API 错误码的严格 Zod schema。
 - `scripts/simulate.ts`：随机整局验收；不是产品 AI。
 - `annotator/`：静态标注工具和语义坐标 JSON；可直接打开 `annotator/index.html`，导入已有 JSON 后编辑。
@@ -66,5 +67,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 E2E_ACCESS_TOKEN=... npm run test:e2e
 ```
 
 不传这两个变量时 E2E 用例会跳过，避免把测试 Token 写入仓库。
+
+登录后可创建或输入房间码加入一个最多 5 人的私人大厅。大厅短轮询成员和准备状态；创建、加入、准备、规则变体和离开都带随机 `commandId`，已入房命令还带当前 `revision`，因此超时重试不会重复修改状态。房主始终是最低有效座位；成员变更、离开或海盗规则变更会清空全员准备。开局、公开房间列表、聊天和 WebSocket 仍未实现。
 
 上述服务命令目前只建立基础存储能力，不构成可公网使用的多人服务。

@@ -16,16 +16,16 @@ test.describe('session gate', () => {
         await page.goto('/')
         await page.getByLabel('访问 Token').fill(token ?? '')
         await page.getByRole('button', { name: '进入大厅' }).click()
-        await expect(page.getByText('大厅将在下一切片开放。')).toBeVisible()
+        await expect(page.getByRole('heading', { name: '创建或加入房间' })).toBeVisible()
       }
       expect(await first.cookies()).not.toEqual(await second.cookies())
 
       await firstPage.reload()
-      await expect(firstPage.getByText('大厅将在下一切片开放。')).toBeVisible()
+      await expect(firstPage.getByRole('heading', { name: '创建或加入房间' })).toBeVisible()
       await firstPage.getByRole('button', { name: '退出' }).click()
       await expect(firstPage.getByRole('button', { name: '进入大厅' })).toBeVisible()
       await secondPage.reload()
-      await expect(secondPage.getByText('大厅将在下一切片开放。')).toBeVisible()
+      await expect(secondPage.getByRole('heading', { name: '创建或加入房间' })).toBeVisible()
     } finally {
       await first.close()
       await second.close()

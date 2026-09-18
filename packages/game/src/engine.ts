@@ -63,19 +63,30 @@ function validateMortgageIds(player: Player, shareIds: string[]): RuleError | nu
 }
 
 function applyMortgages(player: Player, shareIds: string[]): void {
+  let loanCount = 0
   for (const shareId of shareIds) {
     const share = player.shares.find((candidate) => candidate.id === shareId)
-    if (share) share.mortgaged = true
+    if (!share || share.mortgaged) continue
+    share.mortgaged = true
+    loanCount += 1
   }
-  player.pesos += shareIds.length * MORTGAGE_INCOME
+  player.pesos += loanCount * MORTGAGE_INCOME
 }
 
-function finishAuction(state: GameState, winningBid: AuctionBid | null, events: GameEvent[]): void {
+function canHonorWinningBid(player: Player, bid: AuctionBid): boolean {
+  const pendingLoanCount = bid.mortgageShareIds.filter((shareId) => player.shares.some((share) => share.id === shareId && !share.mortgaged)).length
+  return player.pesos + pendingLoanCount * MORTGAGE_INCOME >= bid.amount
+}
+
+function finishAuction(state: GameState, winningBid: AuctionBid | null, events: GameEvent[]): RuleError | null {
   let harborMasterId: string
   if (winningBid) {
     harborMasterId = winningBid.playerId
     const winner = playerById(state, harborMasterId)
     if (!winner) throw new Error('拍卖赢家不存在')
+    if (!canHonorWinningBid(winner, winningBid)) {
+      return { code: 'INSUFFICIENT_BID_FUNDS', message: '现金与声明的抵押股份不足以支付出价' }
+    }
     applyMortgages(winner, winningBid.mortgageShareIds)
     winner.pesos -= winningBid.amount
     events.push({ type: 'auctionWon', playerId: harborMasterId, amount: winningBid.amount })
@@ -90,6 +101,7 @@ function finishAuction(state: GameState, winningBid: AuctionBid | null, events: 
   }
   state.harborMasterId = harborMasterId
   state.phase = { kind: 'sharePurchase', playerId: harborMasterId }
+  return null
 }
 
 function transitionAuction(state: GameState, action: GameAction, events: GameEvent[]): Result<TransitionValue, RuleError> {
@@ -122,11 +134,13 @@ function transitionAuction(state: GameState, action: GameAction, events: GameEve
   }
 
   if (phase.highestBid && phase.activePlayerIds.length === 1 && phase.activePlayerIds[0] === phase.highestBid.playerId) {
-    finishAuction(state, phase.highestBid, events)
+    const settlementError = finishAuction(state, phase.highestBid, events)
+    if (settlementError) return { ok: false, error: settlementError }
     return success(state, events)
   }
   if (!phase.highestBid && phase.activePlayerIds.length === 0) {
-    finishAuction(state, null, events)
+    const settlementError = finishAuction(state, null, events)
+    if (settlementError) return { ok: false, error: settlementError }
     return success(state, events)
   }
   const next = nextClockwise(state.config.playerOrder, action.playerId, phase.activePlayerIds)
@@ -590,12 +604,20 @@ function handleFinance(state: GameState, action: Extract<GameAction, { type: 'mo
     if (share.mortgaged) return failure('ALREADY_MORTGAGED', '该股份已经抵押')
     share.mortgaged = true
     player.pesos += MORTGAGE_INCOME
+    const winningBid = state.phase.kind === 'auction' && state.phase.highestBid?.playerId === player.id ? state.phase.highestBid : null
+    if (winningBid && !canHonorWinningBid(player, winningBid)) {
+      return failure('INSUFFICIENT_BID_FUNDS', '现金与声明的抵押股份不足以支付出价')
+    }
     return success(state, [{ type: 'shareMortgaged', playerId: player.id, shareId: share.id }])
   }
   if (!share.mortgaged) return failure('NOT_MORTGAGED', '该股份未抵押')
   if (player.pesos < REDEEM_COST) return failure('INSUFFICIENT_FUNDS', '资金不足以赎回股份')
   player.pesos -= REDEEM_COST
   share.mortgaged = false
+  const winningBid = state.phase.kind === 'auction' && state.phase.highestBid?.playerId === player.id ? state.phase.highestBid : null
+  if (winningBid && !canHonorWinningBid(player, winningBid)) {
+    return failure('INSUFFICIENT_BID_FUNDS', '赎回后无法支付当前最高出价')
+  }
   return success(state, [{ type: 'shareRedeemed', playerId: player.id, shareId: share.id }])
 }
 

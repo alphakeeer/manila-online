@@ -1,6 +1,7 @@
-import type { AccompliceLocation, Decision, GameAction, GameState } from '../game'
+import type { AccompliceLocation, Commodity, Decision, GameAction, GameState } from '../game'
 import { annotationDocument, findBoardPosition, findCargoSlotPosition, playerPositionStyle, positionStyle } from './annotations'
 import { commodityPresentation } from './commodityPresentation'
+import { MarketPriceTrack } from './MarketPriceTrack'
 
 const asset = (file: string) => new URL(`../../manila_assets/${file}`, import.meta.url).href
 const laneName = ['left', 'center', 'right'] as const
@@ -16,7 +17,7 @@ function tokenBoardName(location: AccompliceLocation | null) {
   return location && location.area !== 'cargo' ? boardLocationName(location) : null
 }
 
-export function GameBoard({ state, decision, showPlayers, onAction }: { state: GameState; decision: Decision | null; showPlayers: boolean; onAction: (action: GameAction) => void }) {
+export function GameBoard({ state, decision, showPlayers, onAction, marketChanges = [] }: { state: GameState; decision: Decision | null; showPlayers: boolean; onAction: (action: GameAction) => void; marketChanges?: readonly Commodity[] }) {
   const placement = decision?.kind === 'placement' ? decision : null
   const boatsToDisplay = decision?.kind === 'launch'
     ? decision.boatIds.map((id, index) => ({ id, commodity: decision.commodities[index]!, lane: decision.lanes[index]!, position: 0 }))
@@ -29,6 +30,7 @@ export function GameBoard({ state, decision, showPlayers, onAction }: { state: G
     <div className="panel-heading"><div><span>航线实况</span><h2>驶向马尼拉</h2></div><p>第 {state.voyage} 航程</p></div>
     <figure className="board-stage">
       <img className="board-stage__image" src={asset('game_board.jpg')} alt="马尼拉游戏版图" />
+      <MarketPriceTrack state={state} changedCommodities={marketChanges} />
       {boatsToDisplay.map((boat) => {
         const commodity = boat.commodity!
         const route = findBoardPosition(annotationDocument, `${laneName[boat.lane!]}-route-space-${boat.position}`)

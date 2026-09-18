@@ -1,5 +1,5 @@
-import { ManilaDemo } from './ui/ManilaDemo'
+import { ManilaApp } from './ui/ManilaApp'
 
 export function App() {
-  return <ManilaDemo />
+  return <ManilaApp />
 }

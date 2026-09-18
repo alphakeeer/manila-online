@@ -53,3 +53,18 @@ test('previews the three selected cargo boats at route position zero before laun
   expect(screen.getByLabelText('丝绸舢板')).toBeInTheDocument()
   expect(screen.getByLabelText('玉石舢板')).toBeInTheDocument()
 })
+
+test('renders the calibrated 5 by 4 market track and animates a commodity whose price rose', () => {
+  const created = createGame({ players: [{ id: 'p1', name: '阿青' }, { id: 'p2', name: '阿明' }, { id: 'p3', name: '阿兰' }], startingPlayerId: 'p1', seed: 7 })
+  if (!created.ok) throw new Error(created.error.message)
+  created.value.market.nutmeg = 20
+
+  const { container } = render(<GameBoard state={created.value} decision={null} showPlayers onAction={() => undefined} marketChanges={['nutmeg']} />)
+
+  expect(screen.getAllByLabelText(/行情格：/)).toHaveLength(20)
+  expect(container.querySelectorAll('.market-cell.highlighted')).toHaveLength(4)
+  expect(screen.getByLabelText('行情格：肉豆蔻，20')).toHaveClass('highlighted')
+  expect(screen.getByLabelText('行情格：肉豆蔻，30')).not.toHaveClass('highlighted')
+  expect(screen.getByLabelText('肉豆蔻行情标记：20')).toHaveClass('market-marker--nutmeg', 'is-moving')
+  expect(screen.getByLabelText('人参行情标记：0')).toBeInTheDocument()
+})

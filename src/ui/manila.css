@@ -1,4 +1,4 @@
-.demo-shell {
+.game-shell {
   --deep-green: #153a33;
   --dark-green: #0d2824;
   --paper: #f2e2c2;
@@ -16,7 +16,7 @@
     var(--dark-green);
 }
 
-.demo-header {
+.game-header {
   width: min(1420px, 100%);
   min-height: 76px;
   margin: 0 auto;
@@ -27,21 +27,19 @@
   border-bottom: 1px solid rgb(213 173 88 / 26%);
 }
 
-.demo-brand { display: flex; align-items: center; gap: 12px; }
-.demo-brand__seal {
+.game-brand { display: flex; align-items: center; gap: 12px; }
+.game-brand__seal {
   width: 44px; height: 44px; display: grid; place-items: center;
   border: 1px solid #d98570; color: #ffe2bf; background: var(--cinnabar);
   box-shadow: inset 0 0 0 3px rgb(255 237 206 / 18%); font: 700 23px/1 Georgia, serif;
 }
-.demo-brand p { margin: 0 0 1px; color: var(--brass); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
-.demo-brand strong { font: 700 27px/1 Georgia, "Noto Serif SC", serif; letter-spacing: .15em; }
+.game-brand p { margin: 0 0 1px; color: var(--brass); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
+.game-brand strong { font: 700 27px/1 Georgia, "Noto Serif SC", serif; letter-spacing: .15em; }
 .voyage-badge { min-width: 138px; padding: 8px 18px; text-align: center; border: 1px solid rgb(213 173 88 / 36%); background: rgb(7 28 25 / 42%); }
 .voyage-badge span, .voyage-badge strong { display: block; }
 .voyage-badge span { color: #bda976; font-size: 9px; letter-spacing: .2em; }
 .voyage-badge strong { margin-top: 2px; color: #fff0c8; font-family: Georgia, "Noto Serif SC", serif; font-size: 16px; }
 .quiet-action { min-height: 40px; padding: 0 16px; border: 1px solid rgb(213 173 88 / 45%); color: #efdfb9; background: transparent; cursor: pointer; }
-.demo-header__rules { justify-self: end; }
-
 .player-strip {
   width: min(1420px, 100%); margin: 16px auto; padding: 0; display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; list-style: none;
@@ -52,21 +50,13 @@
 }
 .player-card.is-current { border-color: rgb(213 173 88 / 68%); box-shadow: inset 3px 0 var(--brass); background: #20483f; }
 .player-card__token { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #fff7de; font-weight: 800; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 24%); }
-.player-card__identity, .player-card__wealth, .player-card__shares { display: flex; flex-direction: column; }
+.player-card__identity, .player-card__wealth { display: flex; flex-direction: column; }
 .player-card strong { font-size: 14px; }
 .player-card small { color: #b9a984; font-size: 9px; letter-spacing: .1em; }
-.player-card__wealth, .player-card__shares { min-width: 42px; text-align: right; border-left: 1px solid rgb(213 173 88 / 15%); }
-.player-card__wealth strong, .player-card__shares strong { color: #ffe09b; font-family: Georgia, serif; font-size: 18px; }
+.player-card__wealth { min-width: 42px; text-align: right; border-left: 1px solid rgb(213 173 88 / 15%); }
+.player-card__wealth strong { color: #ffe09b; font-family: Georgia, serif; font-size: 18px; }
 
-.demo-toolbar {
-  position: fixed; z-index: 30; right: 18px; bottom: 18px; padding: 6px; display: flex; align-items: center; gap: 5px;
-  border: 1px solid rgb(213 173 88 / 34%); background: rgb(8 32 28 / 92%); box-shadow: 0 10px 26px rgb(0 0 0 / 30%); backdrop-filter: blur(10px);
-}
-.demo-toolbar span { padding: 0 7px; color: #a99773; font-size: 9px; letter-spacing: .15em; }
-.demo-toolbar button { min-height: 32px; padding: 0 10px; border: 1px solid rgb(213 173 88 / 25%); color: #e6d4ad; background: rgb(255 255 255 / 3%); font-size: 10px; cursor: pointer; }
-.demo-toolbar button:hover { border-color: #d5ad58; color: #ffe7a9; }
-
-.demo-workspace {
+.game-workspace {
   width: min(1420px, 100%); min-height: calc(100vh - 180px); margin: 0 auto; display: grid;
   grid-template-columns: minmax(430px, 1.65fr) minmax(320px, .72fr); gap: clamp(14px, 2vw, 26px); align-items: stretch;
 }
@@ -79,120 +69,61 @@
 
 .board-stage { position: relative; flex: 1; width: min(100%, 420px); margin: 0 auto; overflow: hidden; border: 8px solid #8e6c38; outline: 1px solid #dbb869; background: #c9aa72; box-shadow: 0 16px 30px rgb(0 0 0 / 34%); aspect-ratio: 1112 / 2183; }
 .board-stage__image { display: block; width: 100%; height: 100%; object-fit: cover; }
-.demo-boat { position: absolute; left: var(--boat-x); top: var(--boat-y); width: clamp(24px, 4vw, 40px); aspect-ratio: 1.45; display: grid; place-items: center; transform: translate(-50%, -50%) rotate(-3deg); border: 2px solid #f3d58b; border-radius: 50% 50% 38% 38%; color: #fff8dc; background: var(--boat-color); box-shadow: 0 3px 7px rgb(0 0 0 / 48%); font: 800 10px/1 sans-serif; }
-.demo-boat::after { content: ''; position: absolute; width: 2px; height: 18px; bottom: 55%; background: #3a2a1e; }
-.board-hotspot { position: absolute; left: var(--spot-x); top: var(--spot-y); width: 16px; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid #fff1c2; border-radius: 50%; background: var(--cinnabar); box-shadow: 0 0 0 4px rgb(184 75 53 / 30%); opacity: .74; transition: transform .18s, box-shadow .18s; }
-.board-hotspot.is-selected { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 6px rgb(255 226 143 / 38%), 0 0 15px #ffe28f; opacity: 1; }
-
+.market-price-track { position: absolute; z-index: 12; inset: 0; pointer-events: none; }
+.market-cell { position: absolute; display: block; border: 2px solid transparent; border-radius: 4px; transform: translate(-50%, -50%); transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+.market-cell.highlighted { border-color: #ffe7a3; background: rgb(255 208 61 / 24%); box-shadow: 0 0 0 1px rgb(95 34 0 / 75%) inset, 0 0 8px 1px rgb(255 207 55 / 58%); }
+.market-marker { position: absolute; z-index: 2; display: block; width: 5.396%; height: 2.749%; border: 3px solid #fff9cd; border-radius: 4px; transform: translate(-50%, -50%); box-shadow: inset 0 0 0 1px rgb(44 26 10 / 38%), 0 0 10px 2px rgb(255 220 100 / 100%); transition: left 400ms ease, top 400ms ease; }
+.market-marker--nutmeg { border-color: #e4a275; background: rgb(143 86 56 / 32%); }
+.market-marker--silk { border-color: #93c0ff; background: rgb(60 114 186 / 32%); }
+.market-marker--ginseng { border-color: #ffe080; background: rgb(207 179 92 / 32%); }
+.market-marker--jade { border-color: #96e7bc; background: rgb(63 152 115 / 32%); }
+.market-marker.is-moving { animation: market-marker-arrival 720ms ease-out; }
+@keyframes market-marker-arrival { 0%, 100% { filter: brightness(1); } 32% { filter: brightness(1.35); box-shadow: 0 0 8px 2px rgb(255 224 130 / 75%); } }
 .decision-panel { align-self: stretch; padding: clamp(26px, 3vw, 44px); color: var(--ink); background: linear-gradient(rgb(255 248 229 / 96%), rgb(237 217 178 / 98%)), repeating-linear-gradient(0deg, transparent 0 4px, rgb(82 54 23 / 4%) 5px); }
 .decision-panel h1 { margin: 8px 0 10px; font: 700 clamp(25px, 3vw, 38px)/1.12 Georgia, "Noto Serif SC", serif; color: #3d2a1c; }
 .decision-panel h1 span { color: var(--cinnabar); }
-.decision-panel__lead { margin: 0 0 24px; color: #79664d; font-size: 13px; line-height: 1.65; }
-.placement-list { display: grid; gap: 10px; }
-.placement-card { width: 100%; min-height: 86px; padding: 13px; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center; text-align: left; border: 1px solid #c4a979; color: var(--ink); background: rgb(255 250 236 / 68%); cursor: pointer; transition: border-color .15s, transform .15s, background .15s; }
-.placement-card:hover { transform: translateY(-1px); border-color: #a76b48; }
-.placement-card.is-selected { border-color: var(--cinnabar); box-shadow: inset 3px 0 var(--cinnabar); background: #fff7e5; }
-.placement-card__mark { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #a98b5b; border-radius: 50%; color: var(--cinnabar); font-weight: 900; }
-.placement-card__copy { display: flex; flex-direction: column; gap: 4px; }
-.placement-card__copy strong { font: 700 16px/1.1 Georgia, "Noto Serif SC", serif; }
-.placement-card__copy small { color: #806e55; line-height: 1.35; }
-.placement-card__cost { min-width: 50px; color: #80633d; text-align: right; font-size: 10px; }
-.placement-card__cost strong { display: block; color: var(--cinnabar); font: 700 24px/1 Georgia, serif; }
-.decision-panel__summary { margin: 22px 0 10px; padding-top: 14px; display: flex; justify-content: space-between; border-top: 1px solid #c8ae7f; color: #79664c; font-size: 12px; }
-.decision-panel__summary strong { color: #4d3522; }
 .primary-action { width: 100%; min-height: 52px; border: 1px solid #772d20; color: #fff1d0; background: var(--cinnabar); box-shadow: inset 0 0 0 2px rgb(255 232 196 / 18%); font-weight: 800; letter-spacing: .06em; cursor: pointer; }
 .primary-action:disabled { border-color: #a89779; color: #887963; background: #c8b99c; cursor: not-allowed; box-shadow: none; }
-.decision-status { min-height: 20px; margin: 10px 0 0; color: #7b6245; text-align: center; font-size: 11px; }
-.mobile-nav { display: none; }
 
 .overlay-scrim, .handoff-stage { --cinnabar: #b84b35; --brass: #d5ad58; }
 .overlay-scrim { position: fixed; z-index: 50; inset: 0; display: flex; justify-content: flex-end; background: rgb(3 16 14 / 72%); backdrop-filter: blur(5px); }
-.overlay-scrim--centered { align-items: center; justify-content: center; padding: 20px; }
 .overlay-kicker { margin: 0 0 5px; color: #b84b35; font-size: 9px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
 .overlay-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; border-bottom: 1px solid #cab082; padding-bottom: 14px; }
-.overlay-heading h2, .settlement-modal h2 { margin: 0; color: #3e2b1e; font: 700 30px/1.1 Georgia, "Noto Serif SC", serif; }
+.overlay-heading h2 { margin: 0; color: #3e2b1e; font: 700 30px/1.1 Georgia, "Noto Serif SC", serif; }
 .overlay-heading > button { width: 36px; height: 36px; border: 1px solid #b9a176; color: #765838; background: transparent; font-size: 24px; cursor: pointer; }
 
-.shares-drawer { width: min(520px, 94vw); height: 100%; padding: clamp(22px, 4vw, 42px); overflow-y: auto; color: #493625; background: linear-gradient(135deg, #fff8e8, #ead5ab); box-shadow: -22px 0 60px rgb(0 0 0 / 42%); }
 .share-grid { margin-top: 22px; display: grid; gap: 12px; }
-.share-card { padding: 11px; display: grid; grid-template-columns: 120px 1fr; gap: 15px; align-items: center; border: 1px solid #c7ab78; background: rgb(255 252 241 / 64%); }
-.share-card__image-wrap { position: relative; aspect-ratio: 1.75; overflow: hidden; border: 1px solid #9d7943; background: #dec795; }
-.share-card img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.share-card__image-wrap span { position: absolute; inset: 0; display: grid; place-items: center; color: #fff3d4; background: rgb(70 42 26 / 62%); font-weight: 900; letter-spacing: .16em; transform: rotate(-7deg); }
-.share-card > div:last-child { display: flex; flex-direction: column; gap: 5px; }
-.share-card > div:last-child strong { font: 700 19px/1 Georgia, "Noto Serif SC", serif; }
-.share-card > div:last-child small { color: #7a674d; }
-.share-card.is-mortgaged { filter: saturate(.65); }
-.drawer-note { margin-top: 18px; padding: 13px; border: 1px dashed #ad8b57; color: #725d40; text-align: center; font-size: 11px; }
-
-.settlement-modal { width: min(540px, 100%); max-height: min(760px, 92vh); padding: clamp(25px, 5vw, 46px); overflow-y: auto; color: #493625; border: 1px solid #e6c77e; background: linear-gradient(#fff9ea, #ead3a5); box-shadow: 0 26px 70px rgb(0 0 0 / 48%); }
-.settlement-modal__lead { margin: 8px 0 22px; color: #806b4f; font-family: Georgia, "Noto Serif SC", serif; font-style: italic; }
-.settlement-rows { border-top: 1px solid #c7a976; }
-.settlement-row { padding: 13px 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid #d5bd91; }
-.settlement-row span { display: flex; flex-direction: column; gap: 3px; }
-.settlement-row small { color: #806d52; }
-.settlement-row b { min-width: 44px; text-align: right; color: #806d52; font: 700 20px/1 Georgia, serif; }
-.settlement-row b.is-positive { color: #287056; }
-.settlement-total { margin: 20px 0; padding: 15px; display: flex; justify-content: space-between; color: #4b3724; border: 1px solid #b7945b; background: rgb(255 250 231 / 60%); }
-.settlement-total strong { color: #287056; }
-
 .handoff-stage { min-height: 100vh; padding: 24px; display: grid; place-items: center; color: #f5e4bf; background: radial-gradient(circle, #25564a, #0c2823 67%); }
 .handoff-card { width: min(450px, 100%); padding: clamp(32px, 7vw, 60px); text-align: center; border: 1px solid rgb(213 173 88 / 45%); background: rgb(8 31 27 / 76%); box-shadow: 0 24px 70px rgb(0 0 0 / 36%); }
-.handoff-card__seal { width: 62px; height: 62px; margin: 0 auto 20px; display: grid; place-items: center; border: 1px solid #e0927c; color: #ffe8bd; background: #b84b35; font: 700 31px/1 Georgia, serif; box-shadow: inset 0 0 0 4px rgb(255 236 199 / 16%); }
-.handoff-card .overlay-kicker { color: #d5ad58; }
 .handoff-card h1 { margin: 5px 0 18px; font: 700 clamp(30px, 7vw, 42px)/1.1 Georgia, "Noto Serif SC", serif; }
 .handoff-card > p:not(.overlay-kicker) { margin: 0 0 7px; font-size: 17px; }
 .handoff-card > p strong { color: #ffd777; }
-.handoff-card > small { display: block; margin-bottom: 26px; color: #a99a7a; line-height: 1.7; }
 
 @media (max-width: 899px) {
-  .demo-shell { padding: 10px 12px calc(24px + env(safe-area-inset-bottom)); }
-  .demo-header { min-height: 58px; grid-template-columns: 1fr auto; }
-  .demo-brand__seal { width: 36px; height: 36px; font-size: 19px; }
-  .demo-brand p { display: none; }
-  .demo-brand strong { font-size: 20px; }
+  .game-shell { padding: 10px 12px calc(24px + env(safe-area-inset-bottom)); }
+  .game-header { min-height: 58px; grid-template-columns: 1fr auto; }
+  .game-brand__seal { width: 36px; height: 36px; font-size: 19px; }
+  .game-brand p { display: none; }
+  .game-brand strong { font-size: 20px; }
   .voyage-badge { min-width: 108px; padding: 6px 10px; }
   .voyage-badge span { display: none; }
   .voyage-badge strong { margin: 0; font-size: 14px; }
-  .demo-header__rules { display: none; }
-  .demo-toolbar { position: static; width: 100%; margin: 0 auto 8px; justify-content: center; }
-  .demo-toolbar span { display: none; }
-  .demo-toolbar button { flex: 1; }
   .player-strip { margin: 10px auto; display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
   .player-card { min-width: 210px; padding: 9px 10px; scroll-snap-align: start; }
   .player-card__token { width: 30px; height: 30px; }
-  .demo-workspace { min-height: 0; display: block; }
+  .game-workspace { min-height: 0; display: block; }
   .board-panel { min-height: 500px; padding: 12px; }
   .panel-heading { margin-bottom: 8px; }
   .panel-heading h2 { font-size: 19px; }
   .board-stage { width: min(100%, 300px); border-width: 5px; }
   .decision-panel { position: static; max-height: none; margin-top: 12px; padding: 18px 16px; overflow: visible; border-width: 1px; box-shadow: 0 14px 34px rgb(0 0 0 / 28%); }
   .decision-panel h1 { margin: 3px 0 5px; font-size: 23px; }
-  .decision-panel__lead { margin-bottom: 10px; font-size: 11px; }
-  .placement-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-  .placement-card { min-height: 72px; padding: 9px; grid-template-columns: auto 1fr; gap: 7px; }
-  .placement-card__mark { width: 23px; height: 23px; }
-  .placement-card__copy strong { font-size: 13px; }
-  .placement-card__copy small { display: none; }
-  .placement-card__cost { grid-column: 2; text-align: left; }
-  .placement-card__cost strong { display: inline; font-size: 16px; }
-  .decision-panel__summary { margin: 10px 0 7px; padding-top: 8px; }
   .primary-action { min-height: 44px; }
-  .decision-status { margin-top: 5px; }
-  .mobile-nav { position: fixed; z-index: 25; left: 0; right: 0; bottom: 0; height: calc(58px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgb(213 173 88 / 28%); background: #102f2a; }
-  .mobile-nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; color: #aa9b7d; background: transparent; font-size: 10px; }
-  .mobile-nav button span { font-size: 17px; }
-  .mobile-nav button.is-active { color: #f0cc79; }
-  .shares-drawer { width: 100%; height: min(82svh, 700px); margin-top: auto; padding: 22px 16px calc(22px + env(safe-area-inset-bottom)); box-shadow: 0 -22px 60px rgb(0 0 0 / 42%); }
-  .share-card { grid-template-columns: 105px 1fr; }
-  .overlay-scrim--centered { align-items: end; padding: 0; }
-  .settlement-modal { width: 100%; max-height: 88svh; padding: 27px 18px calc(22px + env(safe-area-inset-bottom)); border-width: 1px 0 0; }
 }
 
 @media (max-width: 360px) {
   .player-card { min-width: 190px; }
   .decision-panel { padding-inline: 12px; }
-  .decision-panel__lead { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -204,9 +135,6 @@
 .new-game__card h1 { margin: 0; font: 700 34px/1.1 Georgia, "Noto Serif SC", serif; }
 .new-game__card label, .decision-panel label { display: grid; gap: 5px; color: #624b36; font-size: 13px; font-weight: 700; }
 .new-game__card input, .new-game__card select, .decision-panel input, .decision-panel select { min-height: 42px; padding: 8px; border: 1px solid #b99a65; color: #493625; background: #fff8e8; font: inherit; }
-.game-boat, .game-token { position: absolute; display: grid; place-items: center; transform-origin: center; }
-.game-boat { width: 38px; height: 28px; border: 2px solid #ffe3a1; border-radius: 50% 50% 42% 42%; color: #fff8dc; background: #81503b; box-shadow: 0 3px 7px rgb(0 0 0 / 48%); font-weight: 900; }
-.game-token { width: 25px; height: 25px; border: 2px solid #fff2cb; border-radius: 50%; color: #fff; background: #b84b35; box-shadow: 0 2px 5px rgb(0 0 0 / 50%); font-size: 10px; font-weight: 900; }
 .game-hotspot { position: absolute; width: 28px; height: 28px; border: 2px solid #fff2cb; border-radius: 50%; color: #fff; background: #b84b35; box-shadow: 0 0 0 4px rgb(184 75 53 / 30%); cursor: pointer; font-weight: 900; }
 .boat-share { position: absolute; width: clamp(38px, 7vw, 66px); aspect-ratio: 221 / 568; margin: 0; transform-origin: center; filter: drop-shadow(0 3px 5px rgb(0 0 0 / 45%)); }
 .boat-share > img:first-child { display: block; width: 100%; height: 100%; }
@@ -235,11 +163,6 @@
 .collateral label { display: inline-flex; align-items: center; margin-right: 10px; }
 .collateral input { min-height: auto; }
 .rule-error { padding: 10px; color: #8c281c; border: 1px solid #b84b35; background: #ffe5d7; }
-.cargo-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-.cargo-cards article { position: relative; min-width: 0; padding: 6px; border: 1px solid #b79561; background: #f2e2c2; color: #493625; }
-.cargo-cards img { width: 100%; display: block; aspect-ratio: 221 / 568; object-fit: contain; object-position: top; }
-.cargo-cards strong { display: block; font-size: 11px; }
-.cargo-token { position: absolute; display: grid; width: 20px; height: 20px; place-items: center; border-radius: 50%; color: #fff; background: #b84b35; font-size: 10px; }
 .shares-button { position: fixed; z-index: 24; right: 18px; bottom: 18px; color: #f7ead1; border-color: #d5ad58; background: #153a33; }
 .standings { width: min(520px, calc(100% - 32px)); margin: 20px auto; padding: 20px; color: #493625; background: #f2e2c2; }
 .dialog-card { width: min(560px, calc(100% - 32px)); max-height: 88vh; overflow: auto; padding: 26px; color: #493625; background: #f2e2c2; box-shadow: 0 24px 60px rgb(0 0 0 / 40%); }
@@ -248,13 +171,12 @@
 .handoff-card { position: relative; }
 
 @media (min-width: 900px) {
-  .demo-workspace { min-height: 0; }
+  .game-workspace { min-height: 0; }
   .board-panel { min-height: 0; }
   .board-stage { flex: 0 1 auto; width: min(100%, calc((100vh - 270px) * .509)); max-height: calc(100vh - 270px); }
 }
 
 @media (max-width: 899px) {
-  .cargo-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shares-button { right: 12px; bottom: 12px; min-height: 44px; }
   .decision-panel { padding-bottom: 62px; }
 }

@@ -1,14 +1,90 @@
-# 马尼拉（Manila）网页版
+# Manila 多人在线网页版
 
-Zoch 2005 年桌游《马尼拉》的网页版项目。仓库包含三部分：可复用的纯 TypeScript 规则引擎、用于确认布局和交互方向的 React 演示界面，以及一个独立运行的版图位点标注器。
+本项目的目标是实现一个可部署到公网服务器的《Manila》多人在线网页游戏，供小型朋友群体私下游玩。访问者必须持有服务端认可的 **8 位 Token**。
 
-## 当前能力
+> 当前状态：规则引擎和本地客户端原型已经可运行；服务端、房间、Token 鉴权、实时同步和持久化尚未实现。当前页面仅用于在联网架构落地前验证规则与交互，不能作为最终的多人游戏架构。
 
-- 规则引擎：管理航程、竞拍、货物运输、骰子移动、海盗、领航员、保险、股份价值和终局结算。
-- React 演示：提供主桌面、玩家交接、我的股份和航程结算四个固定示例场景；它不写入真实游戏状态。
-- 位点标注器：在 Board 与四张货物 Share 之间切换，编辑可放置组件的坐标，并导入、导出标注 JSON。
+完整产品范围和架构决策见 [项目方向文档](./docs/PROJECT_DIRECTION.md)。
 
-## 环境与命令
+## 核心原则
+
+- **服务器保存并裁决权威游戏状态。** 骰子、回合、资金、股份、合法动作和结算全部由服务端决定。
+- **客户端只负责展示和提交操作。** 浏览器不能自行推进权威游戏，也不能获得其他玩家的私有状态。
+- **Token 只用于私人访问控制。** 不建设注册、密码找回、OAuth、好友等复杂账号系统。
+- 支持创建/加入房间、3–5 人实时游戏、断线重连和服务重启恢复。
+- 房间命令按顺序处理，使用 revision 和 commandId 防止并发覆盖与重复执行。
+
+## 当前已有能力
+
+### 规则引擎
+
+`src/game/` 是不依赖 React、DOM、网络、系统时间或 `Math.random()` 的纯 TypeScript 规则层。它目前提供：
+
+- `createGame`：创建 3–5 人游戏并按 seed 发放股份。
+- `getDecision`：返回当前玩家和可执行决策。
+- `transition`：验证动作并生成下一状态与规则事件。
+- `validateState`：检查资金、股份、同伙、舢板和泊位等不变量。
+- `getStandings`：计算终局财富和并列赢家。
+- 标准及加强海盗规则、贷款、保险、领航员、行情和终局结算。
+
+规则随机性保存在状态内，使用 `mulberry32-v1`，相同 seed 可重现。
+
+### 客户端原型
+
+`src/ui/` 当前是一套使用真实规则引擎的本地热座原型，包含：
+
+- 游戏配置和玩家交接。
+- 全部规则决策的基础操作面板。
+- 版图、舢板、同伙、泊位和商品行情轨道。
+- 私人资金和股份的基础隐藏机制。
+
+该原型仍在浏览器内直接调用规则引擎。实现联网架构时，这些调用将替换为服务端命令和接收者专属状态视图。
+
+### 开发工具与素材
+
+- `annotator/`：独立的版图/货物牌坐标标注工具。
+- `annotator/board-and-shares-annotations.json`：版图和货物位点的语义坐标。
+- `manila_assets/`：版图、股份、货物、玩家和比索原始素材。
+- `scripts/simulate.ts`：随机 AI 完整对局验收脚本。
+- `马尼拉_中文规则_翻译.md`：规则判断依据。
+- `马尼拉_术语表.md`：界面和领域模型术语。
+
+## 目标架构
+
+后续建议演进为 npm workspaces 单仓库：
+
+```text
+apps/
+  web/           React + Vite 客户端
+  server/        HTTP、WebSocket、Token 会话和房间运行时
+packages/
+  game/          纯 TypeScript 规则引擎
+  protocol/      命令、事件、视图和运行时校验 schema
+docs/
+  PROJECT_DIRECTION.md
+tools/
+  annotator/
+```
+
+推荐使用模块化单体 Node.js 服务、Fastify、WebSocket、Zod 和 PostgreSQL。首版以单台公网服务器为部署目标，不提前拆分微服务。
+
+## 当前目录
+
+| 路径 | 职责 |
+| --- | --- |
+| `src/game/` | 可复用的纯规则引擎；未来迁移到 `packages/game/`。 |
+| `src/game/__tests__/` | 规则行为、非法动作、不变量和随机整局模拟。 |
+| `src/ui/` | 当前客户端原型；未来迁移到 `apps/web/` 并改为消费服务端视图。 |
+| `src/ui/ManilaApp.tsx` | 客户端原型入口和本地热座状态。 |
+| `src/ui/DecisionPanel.tsx` | 将规则 Decision 渲染为操作控件。 |
+| `src/ui/GameBoard.tsx` | 版图、舢板、同伙、泊位和可点击位置。 |
+| `src/ui/MarketPriceTrack.tsx` | 商品行情轨道和变动动画。 |
+| `annotator/` | 开发期坐标标注工具。 |
+| `docs/PROJECT_DIRECTION.md` | 最终产品、MVP、非目标和联网架构规划。 |
+
+## 本地开发
+
+要求：
 
 - Node.js 22+
 - npm 10+
@@ -21,91 +97,18 @@ npm run simulate
 npm run build
 ```
 
-`npm run simulate` 默认让 3 个随机决策 AI 完成 10 局游戏，并交替启用标准与加强海盗规则。可以覆盖参数：
+运行更多随机游戏：
 
 ```bash
-npm run simulate -- --games 20 --players 4 --seed 1296125513
+npm run simulate -- --games 50 --players 5 --seed 1296125513
 ```
 
-## 项目结构与职责
+## 当前限制
 
-| 路径 | 负责内容 |
-| --- | --- |
-| `src/game/` | 不依赖 React、DOM、系统时间或 `Math.random()` 的纯规则层。导出 `createGame`、`getDecision`、`transition`、`validateState` 和 `getStandings`。随机性由状态内 `mulberry32-v1` seed 控制，因此结果可重现。 |
-| `src/game/__tests__/` | 规则行为、非法动作、不变量和完整游戏模拟的单元测试。 |
-| `src/ui/` | 手机优先的 React 视觉演示组件、固定演示数据与 UI 交互测试。当前用于展示，不直接驱动规则引擎。 |
-| `src/ui/BoardStage.tsx` | 渲染游戏桌面、版图、货物与玩家组件的主要舞台组件。 |
-| `src/ui/ManilaDemo.tsx` | 组合演示场景与面板，管理仅供展示的 UI 状态。 |
-| `src/ui/manila-demo.css` | 演示界面的响应式布局、桌面与移动端样式。 |
-| `scripts/simulate.ts` | 命令行随机 AI 验收脚本，用于重复运行多局规则模拟。 |
-| `manila_assets/` | 原始版图、货物、股份、玩家和比索图片；React 演示与 annotator 均复用这些素材。 |
-| `annotator/` | 与 React 演示独立的静态位点标注工具和已命名的标注数据。 |
-| `马尼拉_中文规则_翻译.md` | 本项目规则判断的中文依据。 |
-| `马尼拉_术语表.md` | 界面和领域模型的统一术语。 |
+- 没有服务端或数据库，刷新页面会丢失当前游戏。
+- 没有 Token 验证、房间和 WebSocket。
+- 当前热座 UI 不是权威架构，不能直接扩展成浏览器之间的状态同步。
+- 抵押/赎回、航程结算反馈和跨回合表单状态仍需完善。
+- 尚无正式部署、CI 或端到端多人测试。
 
-## 位点标注器（`annotator/`）
-
-直接在浏览器打开 [`annotator/index.html`](./annotator/index.html)，即可使用标注器；它不需要启动 Vite。
-
-### 画布与可放置组件
-
-| 画布 | 背景素材 | 可放置组件 | 用途 |
-| --- | --- | --- | --- |
-| Board | `game_board.jpg` | Share、Player | 标注版图上的航线、港口、修船厂和行动位。 |
-| Jade | `jade_shares.png` | Player | 标注 Jade 货物牌上的 4 个随从位。 |
-| Nutmeg | `nutmeg_shares.png` | Player | 标注 Nutmeg 货物牌上的 3 个随从位。 |
-| Silk | `silk_shares.png` | Player | 标注 Silk 货物牌上的 3 个随从位。 |
-| Ginseng | `ginseng_shares.png` | Player | 标注 Ginseng 货物牌上的 3 个随从位。 |
-
-Share 画布会禁用 **Add Share**；即使导入的 JSON 含有其他类型，也会在导入时过滤，以确保 Share 上只能出现 Player。
-
-### 文件职责
-
-| 文件 | 负责内容 |
-| --- | --- |
-| `annotator/index.html` | 静态页面结构：舞台、Board/Jade/Nutmeg/Silk/Ginseng 切换按钮、编辑面板和导入导出控件。 |
-| `annotator/app.js` | 画布状态、切换逻辑、拖拽、键盘微调、坐标编辑、localStorage 自动保存，以及 JSON 的导入导出和旧格式兼容。 |
-| `annotator/style.css` | 标注器的自适应画布、选中/拖拽状态和侧边栏样式。 |
-| `annotator/board-and-shares-annotations.json` | 当前的命名位点数据：1 个 Board 和 4 张 Share。是后续实现实际组件落点的参考数据。 |
-
-### 操作方式
-
-- 使用顶部按钮切换当前画布；每张画布保存独立的组件与选中状态。
-- 点击 **Add Share** 或 **Add Player** 添加组件；拖拽可移动，右侧数值框可精确修改 X/Y、旋转和缩放。
-- 方向键移动 1px，`Shift + 方向键` 移动 10px；`Q/E` 旋转 1°，配合 Shift 旋转 5°。
-- `Delete` 删除选中项，`Ctrl/Cmd + D` 复制选中项。
-- **Export JSON** 下载数据，**Import JSON** 恢复数据，**Copy JSON** 复制数据；浏览器 localStorage 会自动保留最近一次编辑结果。
-
-### 标注数据格式
-
-```json
-{
-  "board": {
-    "width": 1043,
-    "height": 2048,
-    "items": [{ "id": "share-8", "name": "left-route-space-0", "type": "jade_share", "x": 198.74, "y": 1866.36 }]
-  },
-  "shares": [
-    {
-      "id": "share-1",
-      "width": 221,
-      "height": 568,
-      "items": [{ "id": "player-69", "name": "jade-cargo-slot-cost-3", "type": "player_red", "x": 123.48, "y": 152.58 }]
-    }
-  ]
-}
-```
-
-每个组件可包含：
-
-- `id`：稳定的组件 ID。
-- `name`：可选的语义名称；标注器导入、编辑、导出时会保留此字段。
-- `type`：素材类型，目前为 `jade_share` 或 `player_red`。
-- `x`、`y`：相对于所属画布原始尺寸的中心坐标。
-- `rotation`、`scale`：组件的旋转角度与缩放比例。
-
-当前命名覆盖三条航线的 `space-0` 到 `space-13`、Port/Shipyard 停泊位、四种货物的随从费用位，以及已确认的港口、修船厂、海盗船、领航员和保险事务所 Player 位点。旧的仅 Board 格式已由 `board-and-shares-annotations.json` 取代；导入时仍兼容旧的顶层 `items` 格式。
-
-## 规则来源
-
-规则判断以 [`马尼拉_中文规则_翻译.md`](./马尼拉_中文规则_翻译.md) 为准，界面及领域术语以 [`马尼拉_术语表.md`](./马尼拉_术语表.md) 为准。
+下一阶段应优先建立共享协议、服务端私有视图边界和 Token/房间纵向切片，而不是继续向客户端添加本地权威逻辑。

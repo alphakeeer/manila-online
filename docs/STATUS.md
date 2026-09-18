@@ -70,7 +70,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 [任务索引和依赖](ROADMAP.md) 描述计划，不代表完成；task 文件描述验收，不另设易漂移的状态字段。
 
 - 本轮规划：完成文档拆分、代码核验和任务设计；提交由 Git 历史记录。
-- T01：done / 提交待写入 / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
+- T01：done / `ad1081d` / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
 - T02–T19：TODO。
 - 当前可启动：T02、T03；两者修改同一引擎文件，按路线图串行执行。
 - MVP 尚不可公网发布；下一项执行 T02。

@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
+    exclude: ['tests/integration/**', 'node_modules/**', 'dist/**'],
   },
 })

@@ -1,0 +1,2 @@
+CREATE DATABASE manila;
+CREATE DATABASE manila_test;

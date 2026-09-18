@@ -13,10 +13,13 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@manila/web",
+    "dev:server": "npm run dev --workspace=@manila/server",
     "build": "npm run build --workspace=@manila/web",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "simulate": "tsx scripts/simulate.ts"
+    "simulate": "tsx scripts/simulate.ts",
+    "db:migrate": "npm run migrate --workspace=@manila/server",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.6.0",

@@ -25,6 +25,15 @@ function parsePort(value: string | undefined): number {
   return port
 }
 
+function isExactHttpsOrigin(value: string) {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' && parsed.origin === value
+  } catch {
+    return false
+  }
+}
+
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ServerConfig {
   const rawEnvironment = environment.MANILA_ENV ?? 'development'
   if (rawEnvironment !== 'development' && rawEnvironment !== 'test' && rawEnvironment !== 'production') {
@@ -49,7 +58,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
   if (isProduction && !authPepper) {
     throw new Error('生产环境必须配置 AUTH_PEPPER')
   }
-  if (isProduction && allowedOrigins.some((origin) => !origin.startsWith('https://'))) {
+  if (isProduction && (allowedOrigins.length === 0 || allowedOrigins.some((origin) => !isExactHttpsOrigin(origin)))) {
     throw new Error('生产环境 ALLOWED_ORIGINS 只能包含 HTTPS Origin')
   }
   return {

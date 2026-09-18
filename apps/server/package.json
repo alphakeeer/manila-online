@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "start": "tsx src/main.ts",
-    "migrate": "tsx scripts/migrate.ts",
-    "tokens": "tsx scripts/tokens.ts"
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/main.ts",
+    "start": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
+    "migrate": "node --env-file-if-exists=../../.env --import tsx scripts/migrate.ts",
+    "tokens": "node --env-file-if-exists=../../.env --import tsx scripts/tokens.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

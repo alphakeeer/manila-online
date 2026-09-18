@@ -17,3 +17,13 @@ try {
 }
 
 await app.listen({ host: config.host, port: config.port })
+
+let closing = false
+async function close() {
+  if (closing) return
+  closing = true
+  await app.close()
+}
+
+process.once('SIGINT', () => void close())
+process.once('SIGTERM', () => void close())

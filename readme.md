@@ -40,7 +40,7 @@ npm run build
 
 ### 本地 PostgreSQL 与服务底座
 
-Docker Desktop 可用后，复制 `.env.example` 为 `.env` 并填入本地开发凭证。`DATABASE_URL` 必须指向 `manila`，`TEST_DATABASE_URL` 必须指向名称严格为 `manila_test` 的独立库；测试工具只会重建后者的 `public` schema。
+Docker Desktop 可用后，复制 `.env.example` 为 `.env` 并填入本地开发凭证。服务、迁移和 Token CLI 会自动读取根 `.env`。`DATABASE_URL` 必须指向 `manila`，`TEST_DATABASE_URL` 必须指向名称严格为 `manila_test` 的独立库；测试工具只会重建后者的 `public` schema。
 
 ```bash
 docker compose up -d postgres

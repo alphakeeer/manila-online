@@ -282,7 +282,11 @@ export class LobbyService {
         await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
         return result
       }
-      if (room.status !== 'lobby') return rejected('ROOM_CLOSED')
+      if (room.status !== 'lobby') {
+        const result = rejected('ROOM_CLOSED')
+        await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
+        return result
+      }
       const members = await membersFor(client, room.id)
       const existing = members.find((member) => member.session_id === sessionId)
       if (existing) {
@@ -297,7 +301,11 @@ export class LobbyService {
       }
       const occupied = new Set(members.map((member) => member.seat))
       const seat = [1, 2, 3, 4, 5].find((candidate) => !occupied.has(candidate))
-      if (!seat) return rejected('ROOM_FULL')
+      if (!seat) {
+        const result = rejected('ROOM_FULL')
+        await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
+        return result
+      }
       await client.query('UPDATE sessions SET active_room_id = $1 WHERE id = $2', [room.id, sessionId])
       await client.query(
         `INSERT INTO room_members (room_id, session_id, player_id, nickname, seat)
@@ -376,7 +384,11 @@ export class LobbyService {
       const scopeKey = `room:${room.id}`
       const replay = await replayOrReuse(client, scopeKey, sessionId, input.commandId, digest)
       if (replay) return replay
-      if (room.status !== 'lobby') return rejected('ROOM_CLOSED')
+      if (room.status !== 'lobby') {
+        const result = rejected('ROOM_CLOSED')
+        await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
+        return result
+      }
       const members = await membersFor(client, room.id)
       const member = members.find((candidate) => candidate.session_id === sessionId)
       if (!member) return rejected('NOT_MEMBER')

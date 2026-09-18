@@ -19,9 +19,9 @@
     "test:watch": "vitest --config vitest.config.ts",
     "simulate": "tsx scripts/simulate.ts",
     "db:migrate": "npm run migrate --workspace=@manila/server",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
     "tokens": "npm run tokens --workspace=@manila/server",
-    "test:e2e": "playwright test"
+    "test:e2e": "node --env-file-if-exists=.env ./node_modules/playwright/cli.js test"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.6.0",

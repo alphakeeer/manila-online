@@ -33,8 +33,8 @@ beforeEach(async () => {
 
 afterEach(async () => app.close())
 
-async function session() {
-  return cookieFrom(await app.inject({ method: 'POST', url: '/api/session', headers: { origin }, payload: { token } }))
+async function session(remoteAddress = '127.0.0.1') {
+  return cookieFrom(await app.inject({ method: 'POST', url: '/api/session', remoteAddress, headers: { origin }, payload: { token } }))
 }
 
 async function write(cookie: string, method: 'POST' | 'PATCH' | 'DELETE', url: string, payload: object) {
@@ -73,7 +73,7 @@ describe('persistent lobby', () => {
     const host = await session()
     const created = await write(host, 'POST', '/api/rooms', { commandId: 'create-2', nickname: 'Host' })
     const code = created.json().room.code as string
-    const guests = await Promise.all([session(), session(), session(), session(), session()])
+    const guests = await Promise.all([2, 3, 4, 5, 6].map((index) => session(`127.0.0.${index}`)))
     const joins = await Promise.all(guests.map((cookie, index) => write(cookie, 'POST', '/api/rooms/join', { commandId: `join-${index}`, roomCode: code, nickname: `Guest ${index}` })))
     expect(joins.filter((response) => response.statusCode === 200)).toHaveLength(4)
     expect(joins.filter((response) => response.json().code === 'ROOM_FULL')).toHaveLength(1)

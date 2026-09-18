@@ -18,9 +18,8 @@ export const AccessTokenInputSchema = z
   )
 
 export const LoginRequestSchema = z
-  .object({ token: z.string() })
+  .object({ token: AccessTokenInputSchema })
   .strict()
-  .transform(({ token }) => ({ token: AccessTokenInputSchema.parse(token) }))
 
 export const SessionViewSchema = z
   .object({

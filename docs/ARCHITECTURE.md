@@ -1,6 +1,6 @@
 # 目标架构
 
-状态：已选定的 MVP 设计，尚未实现。当前代码事实见 [STATUS](STATUS.md)，范围见 [PROJECT_DIRECTION](PROJECT_DIRECTION.md)。
+状态：MVP 设计，Phase 2 已实现权威首轮竞拍；当前代码事实见 [STATUS](STATUS.md)，范围见 [PROJECT_DIRECTION](PROJECT_DIRECTION.md)。
 
 ## 1. 结构与依赖边界
 
@@ -20,7 +20,7 @@
 前端展示常量以稳定公开字段组织；服务端适配 protocol 输入为 GameAction，并填入会话确定的 playerId。
 迁移任务仅移动实际已有模块；不提前创建空服务端/协议包。标注器和原图留在原位置，避免纯路径改动扩大范围。
 
-当前热座入口可在迁移期间本地运行；T08 完成时生产 Web 入口全部改为网络客户端，不再打包 game 的运行时和完整状态类型。测试中的规则 fixture 不属于产品状态。
+生产 Web 入口是网络客户端，不打包 game 的运行时或完整状态类型；规则 fixture 仅用于测试，不属于产品状态。
 
 ## 2. Token、会话和座位
 
@@ -43,7 +43,7 @@ Token 生成和摘要可使用 [Node crypto](https://nodejs.org/api/crypto.html)
 - 创建者是房主；加入需有效会话和不可预测的房间码，房间码不替代鉴权。
 - 大厅允许 3–5 人开局；所有成员准备，房主发开始命令。昵称只是显示文本，重复名字不合并身份，按纯文本渲染。
 - 大厅成员加入/离开/变更规则配置会清除准备；房主离开则按座位顺序移交，无成员时关闭。
-- 开局锁定成员、座位和规则；第一位出价者由房主开局配置，后续由引擎决定。服务端产生 uint32 seed 并保存，不下发。
+- 开局锁定成员、座位和规则；第一位出价者由服务端以密码学随机源从全部已准备成员中选取，后续由引擎决定。服务端产生 uint32 seed 并保存，不下发。
 - 掉线保留座位且不自动代打；当前玩家掉线时等待其返回，其他玩家的合法财务命令仍可提交。
 - 已结束游戏提供最终排名和只读记录；再次游玩创建新房间，不复用旧 revision。
 - presence 仅表示瞬时连接状态，准备/成员仍由持久快照表达；presence 不修改游戏 revision；显式退出登录会撤销该会话而不能自动找回旧座位，游戏中需提醒确认；同一会话多标签页共享身份，多个连接以统一命令队列处理。
@@ -73,7 +73,7 @@ DecisionView 按切片扩展；客户端不通过全局 GameState 计算下一�
 MVP 固定：REST 提交命令，WebSocket 只用于订阅和接收通知，避免维护两套写入口。
 最小消息：room.snapshot、room.presence、session.expired；每次接受命令下发完整的接收者快照，不做增量 patch 或断线事件回放。
 
-- 已入房 REST 命令包含 protocolVersion、roomId、commandId、expectedRevision、action；action 严格 schema 拒绝额外字段和客户端 playerId。创建房间尚无 roomId/revision，以会话为范围做 commandId 去重并锁会话行；加入提交房间码，无需预先获取成员快照或 expectedRevision，由服务端锁定目标房间并检查容量和单房间约束。
+- 已入房 REST 命令包含 protocolVersion、commandId、expectedRevision、action；房间由受会话授权的 URL room code 选择，绝不接受客户端 roomId 或 playerId。action 严格 schema 拒绝额外字段。创建房间尚无 revision，以会话为范围做 commandId 去重并锁会话行；加入提交房间码，无需预先获取成员快照或 expectedRevision，由服务端锁定目标房间并检查容量和单房间约束。
 - 每房间一个 revision，覆盖大厅持久变更和游戏动作；一次成功写操作 +1，拒绝/重复不增加。已入房客户端展示 revision N 时只能提交 expectedRevision=N；创建/加入是上述明确例外。
 - 每会话每房间的 commandId 是随机唯一 ID。超时重试保持同 ID、同 payload、同 expectedRevision；更换动作或确认新状态后重新提交必须使用新 ID。
 - 事务流程：验证当前有效会话/Token → 按统一锁顺序锁定必要的会话/房间 → 查本会话幂等记录 → 校验新命令权限/成员关系 → 比较 revision → 映射动作/调用引擎 → 检查不变量 → 写新快照、revision、结果与事件 → commit → ACK 和逐接收者广播。
@@ -96,7 +96,7 @@ WS 身份检查在握手和订阅时执行；WS 消息序列化不能依赖 HTTP
 - 房间命令 commands 唯一键为 (roomId, sessionId, commandId)，包含请求指纹、结果和接受 revision；events 包含事件 ID、revision、可见范围。
 - 快照是恢复依据，事件用于展示和排障；不依赖从初始状态重放全部事件恢复。
 - 游戏种子、RNG、已抵押股份和所有阶段内部字段必须持久化。加载前做形状/版本及不变量验证，未知版本隔离房间并报告，禁止重建一局覆盖原存档。
-- 重连握手校验会话，先注册订阅再发送最新快照，快照读取与该房间写队列排序以避免“快照与订阅之间丢更新”。
+- 重连先读取最新接收者快照，再建立订阅；服务端按房间队列串行化订阅初始快照和随后广播，客户端忽略旧 revision，避免“快照与订阅之间丢更新”。
 - 客户端忽略旧 revision；断线立即禁用游戏写入，以带抖动的指数退避恢复。新快照确认前不开放写入；pending 命令以原 commandId 查询/重试。
 - 服务重启后从数据库恢复会话、成员和状态；连接 presence 重建。进程启动不自动掷骰、不重复结算。
 - 数据库故障时拒绝写操作，保留已提交状态；不切换内存模式或显示伪成功。

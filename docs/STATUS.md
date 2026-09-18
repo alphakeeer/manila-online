@@ -8,13 +8,13 @@
 | 范围 | 实际状态 | 证据 |
 | --- | --- | --- |
 | 规则 | 纯 TS 状态机、3–5 人、两种海盗规则、财务/结算/终局已实现；Phase 0 已修复已复现的 B01/B02 | [engine](../packages/game/src/engine.ts)、[setup](../packages/game/src/setup.ts)、[types](../packages/game/src/types.ts) |
-| 随机性 | 状态内 Mulberry32 RNG，可重现；浏览器新局 seed 固定为 20260819 | [rng](../packages/game/src/rng.ts)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
-| UI | 仍为本地热座，React useState 保存完整 GameState，直接调用 createGame/transition/getDecision | [App](../apps/web/src/App.tsx)、[ManilaApp](../apps/web/src/ui/ManilaApp.tsx) |
-| 决策 | 十类 Decision 有基础 UI；独立 mortgageShare/redeemShare 无入口 | [DecisionPanel](../apps/web/src/ui/DecisionPanel.tsx)、[types](../packages/game/src/types.ts) |
+| 随机性 | 规则状态内 Mulberry32 RNG 可重现；在线开局由服务端生成并持久化 uint32 seed，不下发浏览器 | [rng](../packages/game/src/rng.ts)、[game service](../apps/server/src/game/service.ts) |
+| UI | 登录、持久大厅和线上首轮竞拍已实现；浏览器只消费接收者视图，不保存完整 GameState | [App](../apps/web/src/App.tsx)、[GameRoom](../apps/web/src/ui/GameRoom.tsx) |
+| 决策 | 线上仅开放首轮 bid/passAuction；其余阶段等待后续切片，不存在热座旁路 | [protocol](../packages/protocol/src/index.ts)、[game service](../apps/server/src/game/service.ts) |
 | 版图/行情 | 真实状态驱动、标注坐标、行情动画已经提交，非未跟踪实验 | [GameBoard](../apps/web/src/ui/GameBoard.tsx)、[MarketPriceTrack](../apps/web/src/ui/MarketPriceTrack.tsx) |
 | 标注器 | 独立原生 JS，localStorage 保存的是坐标，不是游戏存档 | [annotator](../annotator/app.js)、[JSON](../annotator/board-and-shares-annotations.json) |
-| 网络与身份 | 无 server、protocol、房间、Token、Cookie 会话、WS、服务端隐私投影 | [package.json](../package.json)、当前 src 文件结构 |
-| 存储与运维 | 无数据库、迁移、CI、容器、部署配置或 E2E 框架 | [vite.config](../apps/web/vite.config.ts)、[package.json](../package.json)、Git 跟踪文件 |
+| 网络与身份 | Fastify、Token/Cookie 会话、持久房间、REST 命令、WebSocket 接收者快照和 presence 已实现 | [server](../apps/server/src/server.ts)、[protocol](../packages/protocol/src/index.ts) |
+| 存储与运维 | PostgreSQL Compose、可排序 migrations、健康检查和真实 integration/E2E 已验证；生产部署和 CI 仍未实现 | [compose](../compose.yaml)、[migrations](../apps/server/migrations)、[Playwright](../tests/e2e/session.spec.ts) |
 | 工具链 | React 19、TS 5.8、Vite 7、Vitest 3、Testing Library/jsdom；TS strict | [package.json](../package.json)、[tsconfig](../tsconfig.json) |
 
 关键历史：b918b33 引入引擎；71b5e81 接入真实决策面板；2579595 清理固定 Demo 并确立在线目标。
@@ -47,11 +47,11 @@ Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 
 | --- | --- | --- |
 | B01 已修复 | 小领航员将最后一艘船送入港后，`rollDice` 识别空待移动集合并直接完成第三轮结算，不生成卡死 phase 或消耗额外 RNG。seed 347 动作链覆盖标准/加强海盗，seed 1413 覆盖第二轮全到港与最终领航机会。 | [T02](tasks/T02-movement-liveness.md) |
 | B02 已修复 | 竞拍结算仅为尚未抵押的声明股份发放贷款；seed 31 的独立抵押再获胜序列最终余额为 11。最高出价者的赎回若使“现金 + 尚待执行声明抵押”不足支付，则被拒绝，结算也保留防止负现金的校验。 | [T03](tasks/T03-auction-finance.md) |
-| U01 代码证据 | 决策输入 bid 初值总为 1，可能低于 minimumBid；同一玩家连续阶段本地字段不重置 | [T08](tasks/T08-live-auction.md)、[T11](tasks/T11-placement.md) |
-| U02 代码证据 | 版图热点固定 mortgageShareIds=[]，不带 stowaway；与面板行为不同 | [T11](tasks/T11-placement.md) |
-| U03 代码证据 | 私人股份仅文字；独立抵押/赎回不可操作 | [T13](tasks/T13-finance.md) |
-| U04 代码证据 | ManilaApp 丢弃 transition.events；settleVoyage 也未产出详细分项事件，旧实现不能直接支撑真实结算明细 | [T14](tasks/T14-settlement.md) |
-| U05 代码证据 | 到港船只仅显示货物标签，cargo 同伙只在 sailing 卡片绘制，靠港后原同伙不显示 | [T12](tasks/T12-voyage.md) |
+| U01 范围限制 | 线上竞拍表单以服务器 minimumBid 初始化并在新决策时重置；后续阶段 UI 尚未接入 | [T11](tasks/T11-placement.md) |
+| U02 范围限制 | 当前公开投影还未包含同伙位置或 stowaway；T11 接入放置时扩展 | [T11](tasks/T11-placement.md) |
+| U03 范围限制 | self 已显示股份/抵押状态，但独立抵押与赎回尚无线上命令入口 | [T13](tasks/T13-finance.md) |
+| U04 范围限制 | games/events 已持久化安全竞拍摘要；详细结算明细仍需 T14 的只读观察性记录 | [T14](tasks/T14-settlement.md) |
+| U05 范围限制 | 公开版图显示船只和行情；同伙和完整航程视觉状态待 T12 | [T12](tasks/T12-voyage.md) |
 | Q01 缺失 | 无整航程 UI、多人隐私、并发、断网和崩溃恢复测试 | T08 起逐片加入；[T18](tasks/T18-release-tests.md) 汇总 |
 | Q02 缺口 | validateState 不验证完整阶段可推进性/输入 schema；GameEvent 为开放字典，不能直接当线上协议 | T02、[T07](tasks/T07-authoritative-commands.md)、T14 |
 | Q03 代码证据 | Dialog 有 Escape 和恢复焦点，未实现焦点圈定；行情计时器没有卸载清理 | [T16](tasks/T16-usability.md) |
@@ -73,11 +73,14 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T01：done / `ad1081d` / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
 - T02：done / `1ca5d47` / 窄回归 11 项、全套 46 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；第三轮无船时不再掷骰，正常航程的既有 RNG 顺序不变。
 - T03：done / `7d886b3` / 窄回归 15 项、全套 51 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；重复抵押不再重复放款，竞拍承诺期间的赎回不会造成负现金。
-- T04：blocked / `ab0f398`、`a441a03` / `npm ci`、`npm test`（13 文件、54 项）和 `npm run build` 通过；`npm run test:integration` 已提供真实 PostgreSQL 的首次/重复/失败回滚用例并在缺少 `TEST_DATABASE_URL` 时安全拒绝。服务脚本会读取根 `.env` 并在 SIGINT/SIGTERM 时关闭连接池。当前开发机未安装 Docker，无法启动 Compose 的 `manila_test`，故真实数据库验收待 Docker Desktop 可用后执行。
-- T05：blocked / `57e8c13` / `npm test`（15 文件、60 项）、`npm run build` 通过；`npm run test:e2e` 在未提供运行中服务与临时 `E2E_ACCESS_TOKEN` 时按设计跳过。Token 规范化、domain-separated HMAC、生产 Cookie/Origin 配置和可控时钟限流有单元测试，真实 PostgreSQL 会话/API 与两浏览器上下文用例已写入 integration/E2E；Docker 不可用，尚未运行真实存储验收。
-- T06：blocked / `c05521a`、`a441a03` / `npm test`（15 文件、60 项）、`npm run build` 通过；`npm run test:e2e` 在缺少运行中的服务和临时 Token 时跳过。真实 PostgreSQL integration 已覆盖迁移、持久创建/加入/准备/规则变体/离房、并发末席、revision、命令重放与冲突；关闭房间等业务拒绝也持久化为可重放结果。当前缺少 Docker 和 `TEST_DATABASE_URL`，命令以安全错误拒绝，未能实际运行。
-- T07–T19：TODO。
-- 当前可启动：T07（T04–T06 实现已提交，Phase 1 的真实 PostgreSQL 与三浏览器验收仍受本机 Docker 条件阻塞）。
+- T04：done / `ab0f398`、`a441a03`、`7d81f58` / Docker Compose PostgreSQL 已启动，`npm run db:migrate` 与 `npm run test:integration`（真实 `manila_test`）通过；仍不包含生产部署。
+- T05：done / `57e8c13`、`7d81f58` / 真实 PostgreSQL 会话、Token 规范化、撤销和限流 integration 通过；Chromium 两独立 Cookie 上下文的登录、刷新和登出 E2E 通过。
+- T06：done / `c05521a`、`a441a03` / 真实 PostgreSQL integration 覆盖创建/加入/准备/规则变体/离房、并发末席、revision 和 commandId 重放；三人完整竞拍流程由 T08 WebSocket integration 覆盖。
+- T07：done / `b1a568c` / `npm run db:migrate`、`npm test`、`npm run build`、`npm run test:integration` 通过；3 人真实数据库开局、私有投影、竞拍 ACK 重放和冲突 commandId 已覆盖。首位出价者由服务端密码学随机选取。
+- T08：done / `19fd395` / `npm test`、`npm run build`、`npm run test:integration` 通过；真实 WebSocket 验证订阅初始视图、presence、接收者私有隔离和提交后相同 revision 广播，生产入口不再依赖 `@manila/game`。
+- T09：done / `656b0fa` / `npm test`、`npm run build`、`npm run test:integration` 通过；客户端快照门禁、断线只读、20 秒心跳、指数重连和 sessionStorage commandId 重试已实现，未知协议版本存档会标记 isolated。进程级故障注入与完整断网 Chromium 情景留待 T18 扩展。
+- T10–T19：TODO。
+- 当前可启动：T10（T04–T09 已完成）。
 - MVP 尚不可公网发布；Phase 0 已完成，下一项执行 T04。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。

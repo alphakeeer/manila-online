@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': process.env.MANILA_SERVER_URL ?? 'http://127.0.0.1:3000',
+      '/api': { target: process.env.MANILA_SERVER_URL ?? 'http://127.0.0.1:3000', ws: true },
     },
   },
   build: {

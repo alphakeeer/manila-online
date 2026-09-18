@@ -8,7 +8,6 @@
     "build": "tsc --noEmit -p ../../tsconfig.json && vite build"
   },
   "dependencies": {
-    "@manila/game": "file:../../packages/game",
     "@manila/protocol": "file:../../packages/protocol",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { Commodity, GameState } from '@manila/game'
-import { commodityPresentation } from './commodityPresentation'
+import { commodityPresentation, type Commodity } from './commodityPresentation'
 
 const sourceSize = { width: 1112, height: 2183 }
 const calibration = {
@@ -22,13 +21,13 @@ function positionStyle(point: { x: number; y: number }): CSSProperties {
   return { left: `${(point.x / sourceSize.width) * 100}%`, top: `${(point.y / sourceSize.height) * 100}%` }
 }
 
-export function MarketPriceTrack({ state, changedCommodities }: { state: GameState; changedCommodities: readonly Commodity[] }) {
+export function MarketPriceTrack({ market }: { market: Record<Commodity, number> }) {
   return <div className="market-price-track" aria-label="商品市价轨道">
-    {marketValues.flatMap((value, row) => marketColumns.map((commodity, column) => <span key={`${commodity}-${value}`} className={`market-cell${state.market[commodity] === value ? ' highlighted' : ''}`} aria-label={`行情格：${commodityPresentation(commodity).label}，${value}`} style={{ ...positionStyle(pointAt(row, column)), width: `${(calibration.cellSize.width / sourceSize.width) * 100}%`, height: `${(calibration.cellSize.height / sourceSize.height) * 100}%` }} />))}
+    {marketValues.flatMap((value, row) => marketColumns.map((commodity, column) => <span key={`${commodity}-${value}`} className={`market-cell${market[commodity] === value ? ' highlighted' : ''}`} aria-label={`行情格：${commodityPresentation(commodity).label}，${value}`} style={{ ...positionStyle(pointAt(row, column)), width: `${(calibration.cellSize.width / sourceSize.width) * 100}%`, height: `${(calibration.cellSize.height / sourceSize.height) * 100}%` }} />))}
     {marketColumns.map((commodity) => {
-      const value = state.market[commodity]
-      const row = marketValues.indexOf(value)
-      return <span key={commodity} className={`market-marker market-marker--${commodity}${changedCommodities.includes(commodity) ? ' is-moving' : ''}`} aria-label={`${commodityPresentation(commodity).label}行情标记：${value}`} style={positionStyle(pointAt(row, marketColumns.indexOf(commodity)))} />
+      const value = market[commodity]
+      const row = marketValues.indexOf(value as typeof marketValues[number])
+      return <span key={commodity} className={`market-marker market-marker--${commodity}`} aria-label={`${commodityPresentation(commodity).label}行情标记：${value}`} style={positionStyle(pointAt(row, marketColumns.indexOf(commodity)))} />
     })}
   </div>
 }

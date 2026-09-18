@@ -11,7 +11,7 @@ import { withTransaction } from '../persistence/database.js'
 type RoomRow = {
   id: string
   code: string
-  status: 'lobby' | 'closed'
+  status: 'lobby' | 'playing' | 'finished' | 'isolated' | 'closed'
   pirate_variant: PirateVariant
   revision: number
 }
@@ -178,6 +178,7 @@ async function snapshotFor(client: PoolClient, room: RoomRow, viewerSessionId: s
     room: {
       code: room.code,
       revision: room.revision,
+      status: room.status === 'finished' ? 'finished' : room.status === 'playing' ? 'playing' : 'lobby',
       pirateVariant: room.pirate_variant,
       members: members.map((member) => ({
         nickname: member.nickname,
@@ -202,7 +203,7 @@ async function activeRoomSnapshot(client: PoolClient, session: SessionRow) {
     [session.active_room_id],
   )
   const current = room.rows[0]
-  if (!current || current.status !== 'lobby') return emptySnapshot
+  if (!current || (current.status !== 'lobby' && current.status !== 'playing' && current.status !== 'finished')) return emptySnapshot
   return snapshotFor(client, current, session.id)
 }
 

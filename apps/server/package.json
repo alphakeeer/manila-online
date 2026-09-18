@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
+    "@fastify/websocket": "^11.3.0",
     "@manila/game": "file:../../packages/game",
     "@manila/protocol": "file:../../packages/protocol",
     "fastify": "^5.12.5",
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.6"
+    "@types/pg": "^8.15.6",
+    "@types/ws": "^8.18.1"
   }
 }

@@ -1,4 +1,5 @@
 import cookie from '@fastify/cookie'
+import websocket from '@fastify/websocket'
 import type { IncomingHttpHeaders } from 'node:http'
 import {
   CreateRoomRequestSchema,
@@ -26,6 +27,7 @@ import type { ServerConfig } from './config.js'
 import { migrationsAreCurrent } from './persistence/migrations.js'
 import { LobbyService, type CommandResult, type LobbyErrorCode } from './lobby/service.js'
 import { GameService, type GameCommandResult, type GameErrorCode } from './game/service.js'
+import { RoomHub } from './realtime/roomHub.js'
 
 export interface ServerDependencies {
   pool: Pool
@@ -94,6 +96,8 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   const sessionWriteLimiter = new FixedWindowRateLimiter(30, 60_000, clock)
   const lobby = new LobbyService(dependencies.pool, config.authPepper, () => clock.now())
   const game = new GameService(dependencies.pool, config.authPepper, () => clock.now())
+  const hub = new RoomHub(game)
+  const heartbeatLimiter = new FixedWindowRateLimiter(6, 60_000, clock)
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'strict' as const,
@@ -102,6 +106,7 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   }
 
   app.register(cookie)
+  app.register(websocket, { options: { maxPayload: 8 * 1024 } })
   app.addHook('onClose', async () => {
     await dependencies.pool.end()
   })
@@ -291,7 +296,9 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     const parsed = StartGameRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
     const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
-    return sendGame(reply, await game.start(session.id, roomCode, parsed.data))
+    const result = await game.start(session.id, roomCode, parsed.data)
+    if (result.kind === 'accepted') await hub.publish(roomCode)
+    return sendGame(reply, result)
   })
 
   app.post('/api/rooms/:roomCode/commands', async (request, reply) => {
@@ -300,7 +307,59 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     const parsed = GameCommandRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
     const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
-    return sendGame(reply, await game.command(session.id, roomCode, parsed.data))
+    const result = await game.command(session.id, roomCode, parsed.data)
+    if (result.kind === 'accepted') await hub.publish(roomCode)
+    return sendGame(reply, result)
+  })
+
+  app.after(() => {
+    app.get('/api/rooms/:roomCode/subscribe', { websocket: true }, (socket, request) => {
+    const originHeader = request.headers.origin ?? request.headers['sec-websocket-origin']
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader
+    if (!validWriteOrigin(origin, config)) {
+      socket.close(1008)
+      return
+    }
+    const credential = request.cookies[sessionCookieName]
+    if (!credential) {
+      socket.close(1008)
+      return
+    }
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    void findSessionByDigest(dependencies.pool, digestSessionCredential(credential, config.authPepper))
+      .then((session) => {
+        if (!session || session.revoked_at || session.expires_at.getTime() <= clock.now() || session.token_revoked_at) {
+          socket.close(1008)
+          return
+        }
+        void hub.subscribe(roomCode, session.id, socket)
+      })
+      .catch(() => socket.close(1011))
+    socket.on('message', (data) => {
+      const bytes = Array.isArray(data)
+        ? data.reduce((total, chunk) => total + chunk.byteLength, 0)
+        : typeof data === 'string' ? Buffer.byteLength(data) : data.byteLength
+      if (bytes > 8 * 1024 || !credential) {
+        socket.close(1009)
+        return
+      }
+      let heartbeat: { type?: unknown; revision?: unknown }
+      try {
+        const text = typeof data === 'string' ? data : Buffer.concat(Array.isArray(data) ? data : [Buffer.from(data)]).toString()
+        heartbeat = JSON.parse(text) as { type?: unknown; revision?: unknown }
+      } catch { socket.close(1008); return }
+      if (heartbeat.type !== 'heartbeat' || !Number.isInteger(heartbeat.revision) || (heartbeat.revision as number) < 0) {
+        socket.close(1008)
+        return
+      }
+      void findSessionByDigest(dependencies.pool, digestSessionCredential(credential, config.authPepper))
+        .then((session) => {
+          if (!session || !heartbeatLimiter.consume(session.id)) { socket.close(1008); return }
+          void hub.heartbeat(roomCode, session.id, heartbeat.revision as number, socket)
+        })
+        .catch(() => socket.close(1011))
+    })
+    })
   })
 
   return app

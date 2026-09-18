@@ -1,4 +1,4 @@
-import type { Commodity } from '@manila/game'
+export type Commodity = 'nutmeg' | 'silk' | 'jade' | 'ginseng'
 
 const presentation: Record<Commodity, { label: string; className: string }> = {
   nutmeg: { label: '肉豆蔻', className: 'commodity--nutmeg' },

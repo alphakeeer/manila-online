@@ -1,13 +1,16 @@
 import {
   ApiErrorSchema,
   LobbySnapshotSchema,
+  GameRoomSnapshotSchema,
   SessionResponseSchema,
   type ApiErrorCode,
   type LobbySnapshot,
+  type GameRoomSnapshot,
   type PirateVariant,
   type SessionView,
 } from '@manila/protocol'
 import { type FormEvent, useEffect, useState } from 'react'
+import { GameRoom } from './GameRoom'
 
 type Status =
   | { kind: 'loading' }
@@ -28,6 +31,7 @@ function commandId() {
 export function SessionLobby() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
   const [snapshot, setSnapshot] = useState<LobbySnapshot | null>(null)
+  const [gameSnapshot, setGameSnapshot] = useState<GameRoomSnapshot | null>(null)
   const [token, setToken] = useState('')
   const [nickname, setNickname] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -115,7 +119,8 @@ export function SessionLobby() {
     }
   }
 
-  async function logout() {
+  async function logout(confirmPlaying = false) {
+    if (confirmPlaying && !window.confirm('退出将撤销当前会话，座位无法自动找回。确定退出吗？')) return
     setPending(true)
     setError(null)
     try {
@@ -125,12 +130,27 @@ export function SessionLobby() {
         return
       }
       setSnapshot(null)
+      setGameSnapshot(null)
       setStatus({ kind: 'signedOut' })
     } catch {
       setError('UNKNOWN_ERROR')
     } finally {
       setPending(false)
     }
+  }
+
+  async function startGame() {
+    if (!snapshot?.room) return
+    setPending(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/rooms/${snapshot.room.code}/start`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ protocolVersion: 1, commandId: commandId(), expectedRevision: snapshot.room.revision }) })
+      const body: unknown = await response.json()
+      const parsed = GameRoomSnapshotSchema.safeParse(body)
+      if (!response.ok || !parsed.success) { setError(errorCode(body)); return }
+      setGameSnapshot(parsed.data)
+      void refreshLobby()
+    } catch { setError('UNKNOWN_ERROR') } finally { setPending(false) }
   }
 
   if (status.kind === 'loading') return <main className="session-lobby"><p>正在确认会话…</p></main>
@@ -150,6 +170,9 @@ export function SessionLobby() {
   }
 
   const room = snapshot?.room
+  if (room?.status === 'playing' || room?.status === 'finished') {
+    return <GameRoom roomCode={room.code} initialSnapshot={gameSnapshot} onSessionExpired={() => { setGameSnapshot(null); setSnapshot(null); setStatus({ kind: 'signedOut' }) }} onLogout={() => void logout(true)} />
+  }
   return (
     <main className="session-lobby">
       <h1>Manila</h1>
@@ -161,6 +184,7 @@ export function SessionLobby() {
           <button type="button" disabled={pending || !snapshot.viewer.canSetReady} onClick={() => void send(`/api/rooms/${room.code}/ready`, 'POST', { commandId: commandId(), expectedRevision: room.revision, ready: !snapshot.viewer.isReady })}>{snapshot.viewer.isReady ? '取消准备' : '准备'}</button>
           {snapshot.viewer.canEditPirateVariant && <label>海盗规则<select value={room.pirateVariant} disabled={pending} onChange={(event) => void send(`/api/rooms/${room.code}/config`, 'PATCH', { commandId: commandId(), expectedRevision: room.revision, pirateVariant: event.target.value })}><option value="standard">标准</option><option value="strengthened">加强</option></select></label>}
           <button type="button" disabled={pending} onClick={() => void send(`/api/rooms/${room.code}/members/me`, 'DELETE', { commandId: commandId(), expectedRevision: room.revision })}>离开房间</button>
+          {snapshot.viewer.canEditPirateVariant && <button type="button" disabled={pending || room.members.length < 3 || room.members.some((member) => !member.ready)} onClick={() => void startGame()}>开始竞拍</button>}
         </section>
       ) : (
         <section aria-label="创建或加入房间">

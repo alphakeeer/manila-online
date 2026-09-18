@@ -115,6 +115,7 @@ export const LobbySnapshotSchema = z
       .object({
         code: z.string(),
         revision: RevisionSchema,
+        status: z.enum(['lobby', 'playing', 'finished']),
         pirateVariant: PirateVariantSchema,
         members: z.array(RoomMemberViewSchema),
       })

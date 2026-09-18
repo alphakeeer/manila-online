@@ -194,13 +194,17 @@ function beginPlacementRound(state: GameState, placementRound: number, movementR
 }
 
 function rollDice(state: GameState, movementRound: number): void {
+  const remainingBoatIds = state.boats.filter((boat) => boat.status === 'sailing').map((boat) => boat.id)
+  if (remainingBoatIds.length === 0) {
+    finishMovementRound(state, movementRound, [])
+    return
+  }
   const dice: Record<Commodity, number> = { nutmeg: 0, silk: 0, jade: 0, ginseng: 0 }
   for (const commodity of state.selectedCommodities) {
     const [roll, rng] = randomInt(state.rng, 6)
     state.rng = rng
     dice[commodity] = roll + 1
   }
-  const remainingBoatIds = state.boats.filter((boat) => boat.status === 'sailing').map((boat) => boat.id)
   state.phase = {
     kind: 'movementOrder',
     playerId: state.harborMasterId ?? '',

@@ -4,6 +4,7 @@ import {
   getDecision,
   getStandings,
   transition,
+  validateState,
   type GameAction,
   type GameState,
 } from '../index'
@@ -34,6 +35,53 @@ function act(state: GameState, action: GameAction): GameState {
   const result = transition(state, action)
   if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
   return result.value.state
+}
+
+function reachSmallPilot(
+  seed: number,
+  startPositions: readonly [number, number, number],
+  variant: 'standard' | 'strengthened' = 'standard',
+): GameState {
+  let state = fresh(variant)
+  const created = createGame({ players, startingPlayerId: 'p1', seed, pirateVariant: variant })
+  if (!created.ok) throw new Error(created.error.message)
+  state = created.value
+  state = act(state, { type: 'bid', playerId: 'p1', amount: 1, mortgageShareIds: [] })
+  state = act(state, { type: 'passAuction', playerId: 'p2' })
+  state = act(state, { type: 'passAuction', playerId: 'p3' })
+  state = act(state, { type: 'buyShare', playerId: 'p1', shareId: null, mortgageShareIds: [] })
+  state = act(state, { type: 'selectCargo', playerId: 'p1', commodities: ['nutmeg', 'silk', 'jade'] })
+  state = act(state, {
+    type: 'launchBoats',
+    playerId: 'p1',
+    assignments: [
+      { boatId: 'boat-1', commodity: 'nutmeg', lane: 0, startPosition: startPositions[0] },
+      { boatId: 'boat-2', commodity: 'silk', lane: 1, startPosition: startPositions[1] },
+      { boatId: 'boat-3', commodity: 'jade', lane: 2, startPosition: startPositions[2] },
+    ],
+  })
+  state = act(state, { type: 'placeAccomplice', playerId: 'p1', location: { area: 'smallPilot' }, mortgageShareIds: [] })
+  state = act(state, { type: 'passPlacement', playerId: 'p2' })
+  state = act(state, { type: 'passPlacement', playerId: 'p3' })
+  state = act(state, { type: 'passPlacement', playerId: 'p1' })
+
+  while (state.phase.kind === 'movementOrder') {
+    const boatId = state.phase.remainingBoatIds[0]
+    if (!boatId) throw new Error('movement order unexpectedly has no boat')
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId })
+  }
+  while (state.phase.kind === 'placement') {
+    state = act(state, { type: 'passPlacement', playerId: state.phase.playerId })
+  }
+  while (state.phase.kind === 'movementOrder') {
+    const boatId = state.phase.remainingBoatIds[0]
+    if (!boatId) throw new Error('movement order unexpectedly has no boat')
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId })
+  }
+  while (state.phase.kind === 'placement') {
+    state = act(state, { type: 'passPlacement', playerId: state.phase.playerId })
+  }
+  return state
 }
 
 describe('movement and pilots', () => {
@@ -78,6 +126,50 @@ describe('movement and pilots', () => {
       moves: [{ boatId: 'boat-1', delta: 1 }],
     })
     expect(state.boats[0]).toMatchObject({ status: 'port', berth: 'A' })
+  })
+
+  test.each(['standard', 'strengthened'] as const)('settles without a third-round roll when the small pilot sends the last boat to port (%s pirates)', (variant) => {
+    let state = reachSmallPilot(347, [1, 3, 5], variant)
+    expect(state.phase).toMatchObject({ kind: 'smallPilot', playerId: 'p1' })
+    expect(state.boats.map((boat) => [boat.id, boat.status, boat.position])).toEqual([
+      ['boat-1', 'sailing', 13],
+      ['boat-2', 'port', null],
+      ['boat-3', 'port', null],
+    ])
+    const rngBeforePilot = state.rng.value
+
+    state = act(state, { type: 'pilotMove', playerId: 'p1', moves: [{ boatId: 'boat-1', delta: 1 }] })
+
+    expect(state.rng.value).toBe(rngBeforePilot)
+    expect(state.voyage).toBe(2)
+    expect(state.phase).toMatchObject({ kind: 'auction', currentPlayerId: 'p1' })
+    expect(state.boats.every((boat) => boat.status === 'unlaunched')).toBe(true)
+    expect(validateState(state)).toEqual([])
+  })
+
+  test('keeps the final pilot opportunity after every boat reaches port in round two', () => {
+    let state = reachSmallPilot(1413, [3, 3, 3])
+    expect(state.boats.every((boat) => boat.status === 'port')).toBe(true)
+    expect(state.phase).toMatchObject({ kind: 'smallPilot', playerId: 'p1' })
+
+    state = act(state, { type: 'pilotMove', playerId: 'p1', moves: [] })
+
+    expect(state.phase).toMatchObject({ kind: 'auction', currentPlayerId: 'p1' })
+    expect(state.voyage).toBe(2)
+    expect(validateState(state)).toEqual([])
+  })
+
+  test('reaches game over when the final pilot move sends a terminal-market cargo to port', () => {
+    let state = reachSmallPilot(347, [1, 3, 5])
+    state.market.nutmeg = 20
+    const rngBeforePilot = state.rng.value
+
+    state = act(state, { type: 'pilotMove', playerId: 'p1', moves: [{ boatId: 'boat-1', delta: 1 }] })
+
+    expect(state.phase).toEqual({ kind: 'gameOver' })
+    expect(state.market.nutmeg).toBe(30)
+    expect(state.rng.value).toBe(rngBeforePilot)
+    expect(validateState(state)).toEqual([])
   })
 })
 

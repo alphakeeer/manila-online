@@ -45,7 +45,7 @@ Git 总计 11 个历史提交。旧 TableView/BoardStage/DemoOverlays/demoState 
 
 | ID | 证据与影响 | 计划 |
 | --- | --- | --- |
-| B01 已复现 | 两船在港，最后一船 13 格，小领航员 +1 后进入 movementOrder(round=3, remainingBoatIds=[])，无推进动作；前后不变量合法。[engine.rollDice](../packages/game/src/engine.ts) 没处理空移动集合 | [T02](tasks/T02-movement-liveness.md) |
+| B01 已修复 | 小领航员将最后一艘船送入港后，`rollDice` 识别空待移动集合并直接完成第三轮结算，不生成卡死 phase 或消耗额外 RNG。seed 347 动作链覆盖标准/加强海盗，seed 1413 覆盖第二轮全到港与最终领航机会。 | [T02](tasks/T02-movement-liveness.md) |
 | B02 已复现 | 初始 30，出价 31 并声明一张抵押；拍卖结束前独立抵押同一股份，其他人放弃后余额 23（应为 30+12−31=11）。[engine.finishAuction](../packages/game/src/engine.ts) 再次 applyMortgages，重复发放 12 | [T03](tasks/T03-auction-finance.md) |
 | U01 代码证据 | 决策输入 bid 初值总为 1，可能低于 minimumBid；同一玩家连续阶段本地字段不重置 | [T08](tasks/T08-live-auction.md)、[T11](tasks/T11-placement.md) |
 | U02 代码证据 | 版图热点固定 mortgageShareIds=[]，不带 stowaway；与面板行为不同 | [T11](tasks/T11-placement.md) |
@@ -71,9 +71,10 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 
 - 本轮规划：完成文档拆分、代码核验和任务设计；提交由 Git 历史记录。
 - T01：done / `ad1081d` / `npm ci`、`npm test`、`npm run build`、`npm run simulate -- --games 20 --players 5 --seed 20260918` 通过；浏览器冒烟仍待后续人工界面验收。
-- T02–T19：TODO。
-- 当前可启动：T02、T03；两者修改同一引擎文件，按路线图串行执行。
-- MVP 尚不可公网发布；下一项执行 T02。
+- T02：done / `1ca5d47` / 窄回归 11 项、全套 46 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；第三轮无船时不再掷骰，正常航程的既有 RNG 顺序不变。
+- T03–T19：TODO。
+- 当前可启动：T03。
+- MVP 尚不可公网发布；下一项执行 T03。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。
 修改功能所在路径时同步本页证据链接；审计数字保留其日期，新增验证另记，避免覆盖历史事实。

@@ -22,4 +22,21 @@ describe('loadConfig', () => {
       databaseUrl: 'postgres://manila:secret@localhost/manila',
     })
   })
+
+  it('requires an HTTPS allowlist and a pepper in production', () => {
+    expect(() =>
+      loadConfig({
+        MANILA_ENV: 'production',
+        DATABASE_URL: 'postgres://manila:secret@localhost/manila',
+      }),
+    ).toThrow('AUTH_PEPPER')
+    expect(() =>
+      loadConfig({
+        MANILA_ENV: 'production',
+        DATABASE_URL: 'postgres://manila:secret@localhost/manila',
+        AUTH_PEPPER: 'secret',
+        ALLOWED_ORIGINS: 'http://localhost:5173',
+      }),
+    ).toThrow('HTTPS')
+  })
 })

@@ -27,3 +27,29 @@ button:focus-visible {
   outline: 3px solid #f1c76d;
   outline-offset: 3px;
 }
+
+.session-lobby {
+  display: grid;
+  gap: 1rem;
+  max-width: 30rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  align-content: center;
+}
+
+.session-lobby form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.session-lobby input,
+.session-lobby button {
+  font: inherit;
+  padding: 0.65rem;
+}
+
+.session-expiry {
+  color: #d4d9de;
+  font-size: 0.9rem;
+}

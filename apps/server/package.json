@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "tokens": "tsx scripts/tokens.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@manila/protocol": "file:../../packages/protocol",
     "fastify": "^5.12.5",
     "pg": "^8.23.0"
   },

@@ -6,6 +6,10 @@ export interface ServerConfig {
   port: number
   databaseUrl: string
   migrationsDir?: string
+  authPepper: string
+  allowedOrigins: readonly string[]
+  secureCookies: boolean
+  sessionTtlMs: number
 }
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
@@ -36,10 +40,26 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
   if (database.protocol !== 'postgres:' && database.protocol !== 'postgresql:') {
     throw new Error('DATABASE_URL 必须使用 PostgreSQL 协议')
   }
+  const authPepper = environment.AUTH_PEPPER?.trim() ?? ''
+  const allowedOrigins = (environment.ALLOWED_ORIGINS ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+  const isProduction = rawEnvironment === 'production'
+  if (isProduction && !authPepper) {
+    throw new Error('生产环境必须配置 AUTH_PEPPER')
+  }
+  if (isProduction && allowedOrigins.some((origin) => !origin.startsWith('https://'))) {
+    throw new Error('生产环境 ALLOWED_ORIGINS 只能包含 HTTPS Origin')
+  }
   return {
     environment: rawEnvironment,
     host: environment.HOST?.trim() || '127.0.0.1',
     port: parsePort(environment.PORT),
     databaseUrl,
+    authPepper,
+    allowedOrigins,
+    secureCookies: isProduction,
+    sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
   }
 }

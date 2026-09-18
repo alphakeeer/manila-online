@@ -8,6 +8,10 @@ const config: ServerConfig = {
   port: 3000,
   databaseUrl: 'postgres://manila:very-secret@localhost/manila',
   migrationsDir: '/does-not-exist',
+  authPepper: 'test-pepper',
+  allowedOrigins: ['http://localhost:5173'],
+  secureCookies: false,
+  sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
 }
 
 function poolThat(query: () => Promise<unknown>) {

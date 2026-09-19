@@ -90,10 +90,11 @@ docker compose -f compose.prod.yaml exec -T app \
 
 ### 3.5 部署后自动验证
 
-在部署主机或任意能访问公网的机器安装 Node 22 后运行：
+在部署主机或任意能访问公网的机器安装 Node 22、执行 `npm ci` 后运行：
 
 ```bash
 cd /opt/manila
+npm ci
 PUBLIC_BASE_URL=https://manila.example.com \
 E2E_ACCESS_TOKEN=<上面创建的 Token> \
 npm run verify:deployment

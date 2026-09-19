@@ -197,20 +197,20 @@ function orderedFromHarborMaster(state: GameState): string[] {
   return state.config.playerOrder.map((_, offset) => state.config.playerOrder[(start + offset) % state.config.playerOrder.length] ?? '')
 }
 
-function beginPlacementRound(state: GameState, placementRound: number, movementRound: number): void {
+function beginPlacementRound(state: GameState, placementRound: number, movementRound: number, events: GameEvent[] = []): void {
   const order = orderedFromHarborMaster(state)
   const first = order.find((id) => canPlayerActInPlacement(state, id))
   if (first) {
     state.phase = { kind: 'placement', playerId: first, placementRound, movementRound, actedPlayerIds: [] }
   } else {
-    completePlacementRound(state, placementRound, movementRound)
+    completePlacementRound(state, placementRound, movementRound, events)
   }
 }
 
-function rollDice(state: GameState, movementRound: number): void {
+function rollDice(state: GameState, movementRound: number, events: GameEvent[] = []): void {
   const remainingBoatIds = state.boats.filter((boat) => boat.status === 'sailing').map((boat) => boat.id)
   if (remainingBoatIds.length === 0) {
-    finishMovementRound(state, movementRound, [])
+    finishMovementRound(state, movementRound, [], events)
     return
   }
   const dice: Record<Commodity, number> = { nutmeg: 0, silk: 0, jade: 0, ginseng: 0 }
@@ -298,7 +298,10 @@ function payEvenly(state: GameState, playerIds: string[], total: number): void {
   }
 }
 
-function settleVoyage(state: GameState): void {
+function settleVoyage(state: GameState, events: GameEvent[]): void {
+  const voyage = state.voyage
+  const beforePesos = new Map(state.players.map((player) => [player.id, player.pesos]))
+  const beforeMarket = { ...state.market }
   const pirateTokens = state.accomplices.filter((token) => token.location?.area === 'pirateCaptain' || token.location?.area === 'pirateCrew')
   for (const boat of state.boats.filter((candidate) => candidate.plundered && candidate.commodity !== null)) {
     payEvenly(state, pirateTokens.map((token) => token.playerId), COMMODITY_RULES[boat.commodity!].profit)
@@ -352,6 +355,13 @@ function settleVoyage(state: GameState): void {
     const index = MARKET_TRACK.indexOf(state.market[commodity])
     state.market[commodity] = MARKET_TRACK[Math.min(index + 1, MARKET_TRACK.length - 1)] ?? 30
   }
+  events.push({
+    type: 'voyageSettled',
+    voyage,
+    boats: state.boats.filter((boat) => boat.commodity !== null).map((boat) => ({ id: boat.id, commodity: boat.commodity, status: boat.status, berth: boat.berth, plundered: boat.plundered })),
+    market: COMMODITIES.map((commodity) => ({ commodity, from: beforeMarket[commodity], to: state.market[commodity] })),
+    playerDeltas: state.players.map((player) => ({ playerId: player.id, pesosDelta: player.pesos - (beforePesos.get(player.id) ?? player.pesos) })),
+  })
   if (COMMODITIES.some((commodity) => state.market[commodity] === 30)) {
     state.phase = { kind: 'gameOver' }
     return
@@ -377,7 +387,7 @@ function settleVoyage(state: GameState): void {
   state.phase = { kind: 'auction', currentPlayerId: current, activePlayerIds: [...state.config.playerOrder], highestBid: null }
 }
 
-function advanceFinalResolution(state: GameState, order: string[], startIndex: number): void {
+function advanceFinalResolution(state: GameState, order: string[], startIndex: number, events: GameEvent[]): void {
   const pirateTokens = state.accomplices.filter((token) => token.location?.area === 'pirateCaptain' || token.location?.area === 'pirateCrew')
   for (let index = startIndex; index < order.length; index += 1) {
     const boatId = order[index]
@@ -398,10 +408,10 @@ function advanceFinalResolution(state: GameState, order: string[], startIndex: n
     if (boat.position === 13) sendToPort(state, boat.id)
     else sendToShipyard(state, boat.id)
   }
-  settleVoyage(state)
+  settleVoyage(state, events)
 }
 
-function finishMovementRound(state: GameState, movementRound: number, movedBoatIds: string[]): void {
+function finishMovementRound(state: GameState, movementRound: number, movedBoatIds: string[], events: GameEvent[]): void {
   state.lastMovementOrder = [...movedBoatIds]
   if (movementRound === 1) {
     beginPlacementRound(state, state.players.length === 3 ? 3 : 2, 1)
@@ -409,7 +419,7 @@ function finishMovementRound(state: GameState, movementRound: number, movedBoatI
     beginAfterSecondMovement(state)
   } else {
     const unresolved = movedBoatIds.filter((boatId) => state.boats.some((boat) => boat.id === boatId && boat.status === 'sailing'))
-    advanceFinalResolution(state, unresolved, 0)
+    advanceFinalResolution(state, unresolved, 0, events)
   }
 }
 
@@ -428,9 +438,9 @@ function applyPilotMoves(state: GameState, moves: Array<{ boatId: string; delta:
   return null
 }
 
-function completePlacementRound(state: GameState, placementRound: number, movementRound: number): void {
+function completePlacementRound(state: GameState, placementRound: number, movementRound: number, events: GameEvent[] = []): void {
   if (state.players.length === 3 && placementRound === 1) {
-    beginPlacementRound(state, 2, 0)
+    beginPlacementRound(state, 2, 0, events)
     return
   }
   const nextMovement = movementRound + 1
@@ -442,14 +452,14 @@ function completePlacementRound(state: GameState, placementRound: number, moveme
     } else if (largePilot) {
       state.phase = { kind: 'largePilot', playerId: largePilot.playerId }
     } else {
-      rollDice(state, 3)
+      rollDice(state, 3, events)
     }
   } else {
-    rollDice(state, nextMovement)
+    rollDice(state, nextMovement, events)
   }
 }
 
-function advancePlacementTurn(state: GameState, actorId: string): void {
+function advancePlacementTurn(state: GameState, actorId: string, events: GameEvent[] = []): void {
   if (state.phase.kind !== 'placement') return
   const { placementRound, movementRound } = state.phase
   const acted = [...state.phase.actedPlayerIds, actorId]
@@ -459,7 +469,7 @@ function advancePlacementTurn(state: GameState, actorId: string): void {
   if (next) {
     state.phase = { kind: 'placement', playerId: next, placementRound, movementRound, actedPlayerIds: acted }
   } else {
-    completePlacementRound(state, placementRound, movementRound)
+    completePlacementRound(state, placementRound, movementRound, events)
   }
 }
 
@@ -697,7 +707,7 @@ export function transition(source: GameState, action: GameAction): Result<Transi
     if (action.type === 'passPlacement') {
       player.passedPlacement = true
       events.push({ type: 'placementPassed', playerId: player.id })
-      advancePlacementTurn(state, player.id)
+      advancePlacementTurn(state, player.id, events)
       return success(state, events)
     }
     const option = placementOptions(state).find((candidate) => sameLocation(candidate.location, action.location))
@@ -721,7 +731,7 @@ export function transition(source: GameState, action: GameAction): Result<Transi
     }
     token.location = action.location
     events.push({ type: 'accomplicePlaced', playerId: player.id, accompliceId: token.id, location: action.location })
-    advancePlacementTurn(state, player.id)
+    advancePlacementTurn(state, player.id, events)
     return success(state, events)
   }
   if (state.phase.kind === 'movementOrder') {
@@ -736,7 +746,7 @@ export function transition(source: GameState, action: GameAction): Result<Transi
     phase.remainingBoatIds = phase.remainingBoatIds.filter((id) => id !== boat.id)
     phase.movedBoatIds.push(boat.id)
     events.push({ type: 'boatMoved', boatId: boat.id, roll: phase.dice[boat.commodity] })
-    if (phase.remainingBoatIds.length === 0) finishMovementRound(state, phase.movementRound, phase.movedBoatIds)
+    if (phase.remainingBoatIds.length === 0) finishMovementRound(state, phase.movementRound, phase.movedBoatIds, events)
     return success(state, events)
   }
   if (state.phase.kind === 'smallPilot' || state.phase.kind === 'largePilot') {
@@ -757,9 +767,9 @@ export function transition(source: GameState, action: GameAction): Result<Transi
     if (isSmall) {
       const large = state.accomplices.find((token) => token.location?.area === 'largePilot')
       if (large) state.phase = { kind: 'largePilot', playerId: large.playerId }
-      else rollDice(state, 3)
+      else rollDice(state, 3, events)
     } else {
-      rollDice(state, 3)
+      rollDice(state, 3, events)
     }
     return success(state, events)
   }
@@ -810,7 +820,7 @@ export function transition(source: GameState, action: GameAction): Result<Transi
       if (boardedId !== undefined) nextPhase.protectedAccompliceId = boardedId
       state.phase = nextPhase
     } else {
-      beginPlacementRound(state, state.players.length === 3 ? 4 : 3, 2)
+      beginPlacementRound(state, state.players.length === 3 ? 4 : 3, 2, events)
     }
     return success(state, events)
   }
@@ -823,7 +833,7 @@ export function transition(source: GameState, action: GameAction): Result<Transi
     if (action.destination === 'port') sendToPort(state, action.boatId)
     else sendToShipyard(state, action.boatId)
     events.push({ type: 'plunderDestinationChosen', boatId: action.boatId, destination: action.destination })
-    advanceFinalResolution(state, phase.movementOrder, phase.index + 1)
+    advanceFinalResolution(state, phase.movementOrder, phase.index + 1, events)
     return success(state, events)
   }
   return failure('WRONG_ACTION', '动作与当前阶段不匹配')

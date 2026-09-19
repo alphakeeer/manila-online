@@ -18,16 +18,16 @@ test.describe('authoritative auction', () => {
     const pages = await Promise.all(contexts.map((context) => context.newPage()))
     try {
       await Promise.all(pages.map(login))
-      await pages[0].getByLabel('昵称').fill('Host')
-      await pages[0].getByRole('button', { name: '创建房间' }).click()
-      const title = await pages[0].getByRole('heading', { name: /房间 / }).textContent()
+      await pages[0]!.getByLabel('昵称').fill('Host')
+      await pages[0]!.getByRole('button', { name: '创建房间' }).click()
+      const title = await pages[0]!.getByRole('heading', { name: /房间 / }).textContent()
       const roomCode = title?.match(/[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}/)?.[0]
       expect(roomCode).toBeTruthy()
       for (const [page, nickname] of [[pages[1], 'One'], [pages[2], 'Two']] as const) {
-        await page.getByLabel('昵称').fill(nickname)
-        await page.getByLabel('房间码').fill(roomCode!)
-        await page.getByRole('button', { name: '加入房间' }).click()
-        await expect(page.getByRole('heading', { name: `房间 ${roomCode}` })).toBeVisible()
+        await page!.getByLabel('昵称').fill(nickname)
+        await page!.getByLabel('房间码').fill(roomCode!)
+        await page!.getByRole('button', { name: '加入房间' }).click()
+        await expect(page!.getByRole('heading', { name: `房间 ${roomCode}` })).toBeVisible()
       }
       for (const page of pages) {
         await page.reload()
@@ -35,9 +35,9 @@ test.describe('authoritative auction', () => {
         await page.getByRole('button', { name: '准备' }).click()
         await expect(page.getByRole('button', { name: '取消准备' })).toBeVisible()
       }
-      await pages[0].reload()
-      await expect(pages[0].getByRole('button', { name: '开始竞拍' })).toBeEnabled()
-      await pages[0].getByRole('button', { name: '开始竞拍' }).click()
+      await pages[0]!.reload()
+      await expect(pages[0]!.getByRole('button', { name: '开始竞拍' })).toBeEnabled()
+      await pages[0]!.getByRole('button', { name: '开始竞拍' }).click()
       await expect.poll(async () => (await Promise.all(pages.map((page) => page.locator('.game-shell').count()))).reduce((total, count) => total + count, 0), { timeout: 8_000 }).toBe(3)
       const acting = await Promise.all(pages.map(async (page) => ({ page, active: await page.getByText('你的回合').count() })))
       const actor = acting.find((entry) => entry.active === 1)?.page

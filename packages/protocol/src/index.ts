@@ -142,39 +142,70 @@ export const StartGameRequestSchema = z.object({
   expectedRevision: RevisionSchema,
 }).strict()
 
+const CommoditySchema = z.enum(['nutmeg', 'silk', 'jade', 'ginseng'])
+const LaneSchema = z.union([z.literal(0), z.literal(1), z.literal(2)])
+const BoatStatusSchema = z.enum(['unlaunched', 'sailing', 'port', 'shipyard'])
+
 export const AuctionActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('bid'), amount: z.number().int().nonnegative(), mortgageShareIds: z.array(z.string().min(1)).max(5) }).strict(),
   z.object({ type: z.literal('passAuction') }).strict(),
 ])
 
-export const UnavailableActionSchema = z.object({
-  type: z.enum(['buyShare', 'selectCargo', 'launchBoats', 'placeAccomplice', 'passPlacement', 'moveBoat', 'pilotMove', 'boardPirate', 'choosePlunderDestination', 'mortgageShare', 'redeemShare']),
-}).strict()
+export const GameActionSchema = z.discriminatedUnion('type', [
+  ...AuctionActionSchema.options,
+  z.object({ type: z.literal('buyShare'), commodity: CommoditySchema.nullable(), mortgageShareIds: z.array(z.string().min(1)).max(5) }).strict(),
+  z.object({ type: z.literal('selectCargo'), commodities: z.array(CommoditySchema).max(4) }).strict(),
+  z.object({ type: z.literal('launchBoats'), assignments: z.array(z.object({ boatId: z.string().min(1), commodity: CommoditySchema, lane: LaneSchema, startPosition: z.number().int() }).strict()).max(3) }).strict(),
+  z.object({ type: z.literal('placeAccomplice'), location: z.object({ area: z.enum(['cargo', 'port', 'shipyard', 'pirateCaptain', 'pirateCrew', 'smallPilot', 'largePilot', 'insurance']), boatId: z.string().min(1).optional(), slot: z.number().int().nonnegative().optional(), berth: z.enum(['A', 'B', 'C']).optional() }).strict(), mortgageShareIds: z.array(z.string().min(1)).max(5), stowaway: z.boolean() }).strict(),
+  z.object({ type: z.literal('passPlacement') }).strict(),
+  z.object({ type: z.literal('moveBoat'), boatId: z.string().min(1) }).strict(),
+  z.object({ type: z.literal('pilotMove'), moves: z.array(z.object({ boatId: z.string().min(1), delta: z.union([z.literal(-2), z.literal(-1), z.literal(1), z.literal(2)]) }).strict()).max(2) }).strict(),
+  z.object({ type: z.literal('boardPirate'), accompliceId: z.string().min(1), boatId: z.string().min(1).nullable(), displacedAccompliceId: z.string().min(1).optional() }).strict(),
+  z.object({ type: z.literal('choosePlunderDestination'), boatId: z.string().min(1), destination: z.enum(['port', 'shipyard']) }).strict(),
+  z.object({ type: z.literal('mortgageShare'), shareId: z.string().min(1) }).strict(),
+  z.object({ type: z.literal('redeemShare'), shareId: z.string().min(1) }).strict(),
+])
 
 export const GameCommandRequestSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
   commandId: CommandIdSchema,
   expectedRevision: RevisionSchema,
-  action: z.union([AuctionActionSchema, UnavailableActionSchema]),
+  action: GameActionSchema,
 }).strict()
 
-const CommoditySchema = z.enum(['nutmeg', 'silk', 'jade', 'ginseng'])
-const BoatStatusSchema = z.enum(['unlaunched', 'sailing', 'port', 'shipyard'])
+const DecisionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('auction'), minimumBid: z.number().int().positive(), maximumBid: z.number().int().nonnegative(), availableCollateralShareIds: z.array(z.string()) }).strict(),
+  z.object({ kind: z.literal('sharePurchase'), available: z.array(z.object({ commodity: CommoditySchema, price: z.number().int().nonnegative() }).strict()), availableCollateralShareIds: z.array(z.string()) }).strict(),
+  z.object({ kind: z.literal('cargoSelection'), commodities: z.array(CommoditySchema) }).strict(),
+  z.object({ kind: z.literal('launch'), boatIds: z.array(z.string()), commodities: z.array(CommoditySchema), lanes: z.array(LaneSchema), startPositionTriples: z.array(z.tuple([z.number().int(), z.number().int(), z.number().int()])) }).strict(),
+  z.object({ kind: z.literal('placement'), placementRound: z.number().int().positive(), options: z.array(z.object({ location: z.object({ area: z.string(), boatId: z.string().optional(), slot: z.number().int().optional(), berth: z.enum(['A', 'B', 'C']).optional() }).strict(), cost: z.number().int().nonnegative() }).strict()), canStowaway: z.boolean(), canPass: z.boolean(), availableCollateralShareIds: z.array(z.string()) }).strict(),
+  z.object({ kind: z.literal('movementOrder'), movementRound: z.number().int().positive(), dice: z.record(CommoditySchema, z.number().int()), remainingBoatIds: z.array(z.string()) }).strict(),
+  z.object({ kind: z.enum(['smallPilot', 'largePilot']), movableBoatIds: z.array(z.string()), legalMoves: z.array(z.array(z.object({ boatId: z.string(), delta: z.union([z.literal(-2), z.literal(-1), z.literal(1), z.literal(2)]) }).strict())) }).strict(),
+  z.object({ kind: z.literal('pirateBoarding'), accompliceId: z.string(), eligibleBoatIds: z.array(z.string()), displaceableByBoat: z.record(z.string(), z.array(z.string())), canStay: z.boolean() }).strict(),
+  z.object({ kind: z.literal('plunderDestination'), boatId: z.string(), destinations: z.array(z.enum(['port', 'shipyard'])) }).strict(),
+])
 export const GameRoomSnapshotSchema = z.object({
   room: z.object({ code: z.string(), revision: RevisionSchema, pirateVariant: PirateVariantSchema, status: z.enum(['playing', 'finished']) }).strict(),
   public: z.object({
     voyage: z.number().int().positive(),
-    phase: z.object({ kind: z.string(), currentSeat: z.number().int().min(1).max(5).nullable() }).strict(),
+      phase: z.object({ kind: z.string(), currentSeat: z.number().int().min(1).max(5).nullable(), dice: z.record(CommoditySchema, z.number().int()).nullable() }).strict(),
     harborMasterSeat: z.number().int().min(1).max(5).nullable(),
     highestBid: z.object({ amount: z.number().int().nonnegative(), bidderSeat: z.number().int().min(1).max(5) }).strict().nullable(),
     market: z.record(CommoditySchema, z.number().int()),
-    boats: z.array(z.object({ id: z.string(), commodity: CommoditySchema.nullable(), lane: z.number().int().min(0).max(2).nullable(), position: z.number().int().nullable(), status: BoatStatusSchema, berth: z.enum(['A', 'B', 'C']).nullable(), plundered: z.boolean() }).strict()),
+      boats: z.array(z.object({ id: z.string(), commodity: CommoditySchema.nullable(), lane: z.number().int().min(0).max(2).nullable(), position: z.number().int().nullable(), status: BoatStatusSchema, berth: z.enum(['A', 'B', 'C']).nullable(), plundered: z.boolean() }).strict()),
+      accomplices: z.array(z.object({ id: z.string(), seat: z.number().int().min(1).max(5), location: z.object({ area: z.string(), boatId: z.string().optional(), slot: z.number().int().optional(), berth: z.enum(['A', 'B', 'C']).optional() }).strict().nullable() }).strict()),
     players: z.array(z.object({ seat: z.number().int().min(1).max(5), nickname: z.string() }).strict()),
     shareSupply: z.record(CommoditySchema, z.number().int().nonnegative()),
+    standings: z.array(z.object({ seat: z.number().int().min(1).max(5), nickname: z.string(), wealth: z.number().int(), winner: z.boolean() }).strict()).nullable(),
   }).strict(),
   self: z.object({ seat: z.number().int().min(1).max(5), pesos: z.number().int().nonnegative(), shares: z.array(z.object({ id: z.string(), commodity: CommoditySchema, mortgaged: z.boolean() }).strict()) }).strict(),
-  decision: z.object({ kind: z.literal('auction'), minimumBid: z.number().int().positive(), maximumBid: z.number().int().nonnegative(), availableCollateralShareIds: z.array(z.string()) }).strict().nullable(),
+  decision: DecisionSchema.nullable(),
+}).strict()
+
+export const SettlementHistorySchema = z.object({
+  settlements: z.array(z.object({ voyage: z.number().int().positive(), public: z.unknown(), self: z.object({ pesosDelta: z.number().int() }).nullable() }).strict()),
 }).strict()
 
 export type GameRoomSnapshot = z.infer<typeof GameRoomSnapshotSchema>
 export type GameCommandRequest = z.infer<typeof GameCommandRequestSchema>
+export type SettlementHistory = z.infer<typeof SettlementHistorySchema>

@@ -82,6 +82,6 @@ describe('authoritative first auction', () => {
     const created = await write(host, '/api/rooms', { commandId: 'create', nickname: 'Host' })
     const code = created.json().room.code as string
     expect((await write(host, `/api/rooms/${code}/start`, { protocolVersion: 1, commandId: 'early', expectedRevision: 1 })).json()).toEqual({ code: 'START_NOT_READY' })
-    expect((await write(host, `/api/rooms/${code}/commands`, { protocolVersion: 1, commandId: 'future', expectedRevision: 1, action: { type: 'buyShare' } })).json()).toEqual({ code: 'ROOM_CLOSED' })
+    expect((await write(host, `/api/rooms/${code}/commands`, { protocolVersion: 1, commandId: 'future', expectedRevision: 1, action: { type: 'buyShare', commodity: null, mortgageShareIds: [] } })).json()).toEqual({ code: 'ROOM_CLOSED' })
   })
 })

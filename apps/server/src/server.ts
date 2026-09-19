@@ -11,6 +11,7 @@ import {
   SetPirateVariantRequestSchema,
   SetReadyRequestSchema,
   SessionResponseSchema,
+  SettlementHistorySchema,
 } from '@manila/protocol'
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify'
 import type { Pool } from 'pg'
@@ -288,6 +289,15 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     if (!session) return reply
     const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
     return sendGame(reply, await game.latest(session.id, roomCode))
+  })
+
+  app.get('/api/rooms/:roomCode/history', async (request, reply) => {
+    const session = await authenticate(request, reply)
+    if (!session) return reply
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    const result = await game.history(session.id, roomCode)
+    if (result.kind === 'rejected') return sendError(reply, gameStatus(result.code), result.code)
+    return SettlementHistorySchema.parse(result.history)
   })
 
   app.post('/api/rooms/:roomCode/start', async (request, reply) => {

@@ -79,7 +79,8 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T07：done / `b1a568c` / `npm run db:migrate`、`npm test`、`npm run build`、`npm run test:integration` 通过；3 人真实数据库开局、私有投影、竞拍 ACK 重放和冲突 commandId 已覆盖。首位出价者由服务端密码学随机选取。
 - T08：done / `19fd395`、`3bc93d0` / `npm test`、`npm run build`、`npm run test:integration` 通过；真实 WebSocket 验证订阅初始视图、presence、接收者私有隔离和提交后相同 revision 广播；三独立 Chromium 上下文完成创建、准备、随机首位竞拍与同步。生产入口不再依赖 `@manila/game`。
 - T09：done / `656b0fa` / `npm test`、`npm run build`、`npm run test:integration` 通过；客户端快照门禁、断线只读、20 秒心跳、指数重连和 sessionStorage commandId 重试已实现，未知协议版本存档会标记 isolated。进程级故障注入与完整断网 Chromium 情景留待 T18 扩展。
-- T10–T19：TODO。
+- T10–T14：in progress / 未提交 / 已扩展权威协议与服务端动作适配，接入购股、选货、下水、放置、航行、领航、海盗及独立财务入口；结算事件、私有结算存储和历史读取已初步接通。`npm test`、`npm run build`、`npm run test:integration` 通过；尚缺逐任务 E2E、热点交互、完整对局回归和每项独立提交，不能标记 done。
+- T15–T19：TODO。
 - 当前可启动：T10（T04–T09 已完成）。
 - MVP 尚不可公网发布；Phase 0 已完成，下一项执行 T04。
 

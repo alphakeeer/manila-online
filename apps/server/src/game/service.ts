@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, randomInt } from 'node:crypto'
-import { createGame, getDecision, transition, validateState, type GameAction, type GameEvent, type GameState } from '@manila/game'
-import { GameRoomSnapshotSchema, PROTOCOL_VERSION, type GameCommandRequest, type GameRoomSnapshot, type PirateVariant } from '@manila/protocol'
+import { createGame, getDecision, getStandings, transition, validateState, type GameAction, type GameEvent, type GameState } from '@manila/game'
+import { GameRoomSnapshotSchema, SettlementHistorySchema, PROTOCOL_VERSION, type GameCommandRequest, type GameRoomSnapshot, type PirateVariant, type SettlementHistory } from '@manila/protocol'
 import type { Pool, PoolClient } from 'pg'
 import { withTransaction } from '../persistence/database.js'
 
@@ -13,6 +13,7 @@ type GameRow = { snapshot: GameState; seed: string; state_version: number; rules
 type StoredCommand = { request_digest: string; result: GameCommandResult }
 export type GameErrorCode = 'AUTH_REQUIRED' | 'TOKEN_REVOKED' | 'NOT_MEMBER' | 'NOT_HOST' | 'ROOM_NOT_FOUND' | 'ROOM_CLOSED' | 'ROOM_ISOLATED' | 'START_NOT_READY' | 'GAME_NOT_FOUND' | 'REVISION_CONFLICT' | 'COMMAND_ID_REUSED' | 'RULE_REJECTED' | 'ACTION_NOT_AVAILABLE'
 export type GameCommandResult = { kind: 'accepted'; snapshot: GameRoomSnapshot } | { kind: 'rejected'; code: GameErrorCode }
+export type GameHistoryResult = { kind: 'accepted'; history: SettlementHistory } | { kind: 'rejected'; code: GameErrorCode }
 
 const reject = (code: GameErrorCode): GameCommandResult => ({ kind: 'rejected', code })
 
@@ -66,32 +67,78 @@ function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], view
     ? { amount: state.phase.highestBid.amount, bidderSeat: memberByPlayer.get(state.phase.highestBid.playerId)?.seat ?? 0 }
     : null
   const decision = getDecision(state)
+  const projectedDecision = decision && 'playerId' in decision && decision.playerId === viewer.player_id
+    ? decision.kind === 'auction'
+      ? { kind: 'auction', minimumBid: decision.minimumBid, maximumBid: decision.maximumBid, availableCollateralShareIds: [...decision.availableCollateralShareIds] }
+      : decision.kind === 'sharePurchase'
+        ? { kind: 'sharePurchase', available: decision.available.map(({ commodity, price }) => ({ commodity, price })), availableCollateralShareIds: [...decision.availableCollateralShareIds] }
+        : decision.kind === 'cargoSelection'
+          ? { kind: 'cargoSelection', commodities: [...decision.commodities] }
+          : decision.kind === 'launch'
+            ? { kind: 'launch', boatIds: [...decision.boatIds], commodities: [...decision.commodities], lanes: [...decision.lanes], startPositionTriples: decision.startPositionTriples.map((triple) => [...triple]) }
+            : decision.kind === 'placement'
+              ? { kind: 'placement', placementRound: decision.placementRound, options: decision.options.map((option) => ({ location: option.location, cost: option.cost })), canStowaway: decision.canStowaway, canPass: decision.canPass, availableCollateralShareIds: [...decision.availableCollateralShareIds] }
+              : decision.kind === 'movementOrder'
+                ? { kind: 'movementOrder', movementRound: decision.movementRound, dice: decision.dice, remainingBoatIds: [...decision.remainingBoatIds] }
+                : decision.kind === 'smallPilot' || decision.kind === 'largePilot'
+                  ? { kind: decision.kind, movableBoatIds: [...decision.movableBoatIds], legalMoves: decision.legalMoves.map((moves) => moves.map((move) => ({ ...move }))) }
+                  : decision.kind === 'pirateBoarding'
+                    ? { kind: 'pirateBoarding', accompliceId: decision.accompliceId, eligibleBoatIds: [...decision.eligibleBoatIds], displaceableByBoat: decision.displaceableByBoat, canStay: decision.canStay }
+                    : { kind: 'plunderDestination', boatId: decision.boatId, destinations: [...decision.destinations] }
+    : null
   return GameRoomSnapshotSchema.parse({
     room: { code: room.code, revision: room.revision, pirateVariant: room.pirate_variant, status: room.status === 'finished' ? 'finished' : 'playing' },
     public: {
       voyage: state.voyage,
-      phase: { kind: state.phase.kind, currentSeat: phaseSeat(state, memberByPlayer) },
+      phase: { kind: state.phase.kind, currentSeat: phaseSeat(state, memberByPlayer), dice: state.phase.kind === 'movementOrder' ? state.phase.dice : null },
       harborMasterSeat: state.harborMasterId ? memberByPlayer.get(state.harborMasterId)?.seat ?? null : null,
       highestBid,
       market: state.market,
       boats: state.boats.map((boat) => ({ id: boat.id, commodity: boat.commodity, lane: boat.lane, position: boat.position, status: boat.status, berth: boat.berth, plundered: boat.plundered })),
+      accomplices: state.accomplices.map((accomplice, index) => ({ id: `accomplice-${index + 1}`, seat: memberByPlayer.get(accomplice.playerId)?.seat ?? 0, location: accomplice.location })),
       players: roomMembers.map((member) => ({ seat: member.seat, nickname: member.nickname })),
       shareSupply: Object.fromEntries(['nutmeg', 'silk', 'jade', 'ginseng'].map((commodity) => [commodity, state.shareSupply.filter((share) => share.commodity === commodity).length])),
+      standings: state.phase.kind === 'gameOver' ? getStandings(state).map((standing) => ({ seat: memberByPlayer.get(standing.playerId)?.seat ?? 0, nickname: standing.name, wealth: standing.wealth, winner: standing.winner })) : null,
     },
     self: { seat: viewer.seat, pesos: player.pesos, shares: player.shares.map((share) => ({ id: share.id, commodity: share.commodity, mortgaged: share.mortgaged })) },
-    decision: decision?.kind === 'auction' && decision.playerId === viewer.player_id
-      ? { kind: 'auction', minimumBid: decision.minimumBid, maximumBid: decision.maximumBid, availableCollateralShareIds: [...decision.availableCollateralShareIds] }
-      : null,
+    decision: projectedDecision,
   })
 }
 
-function publicEvents(events: GameEvent[], roomMembers: MemberRow[]): Array<{ eventType: string; payload: Record<string, unknown> }> {
+function toGameAction(state: GameState, playerId: string, action: GameCommandRequest['action']): GameAction {
+  switch (action.type) {
+    case 'bid': return { ...action, playerId }
+    case 'passAuction': return { type: 'passAuction', playerId }
+    case 'buyShare': {
+      const shareId = action.commodity === null ? null : state.shareSupply.find((share) => share.commodity === action.commodity)?.id
+      return { type: 'buyShare', playerId, shareId: shareId ?? null, mortgageShareIds: action.mortgageShareIds }
+    }
+    case 'selectCargo': return { ...action, playerId }
+    case 'launchBoats': return { ...action, playerId }
+    case 'placeAccomplice': return { ...action, playerId } as GameAction
+    case 'passPlacement': return { type: 'passPlacement', playerId }
+    case 'moveBoat': return { ...action, playerId }
+    case 'pilotMove': return { ...action, playerId }
+    case 'boardPirate': return action.displacedAccompliceId === undefined
+      ? { type: 'boardPirate', playerId, accompliceId: action.accompliceId, boatId: action.boatId }
+      : { type: 'boardPirate', playerId, accompliceId: action.accompliceId, boatId: action.boatId, displacedAccompliceId: action.displacedAccompliceId }
+    case 'choosePlunderDestination': return { ...action, playerId }
+    case 'mortgageShare': return { ...action, playerId }
+    case 'redeemShare': return { ...action, playerId }
+  }
+}
+
+function publicEvents(events: GameEvent[], roomMembers: MemberRow[]): Array<{ eventType: string; payload: Record<string, unknown>; privatePayload?: Record<string, unknown> }> {
   const seatFor = new Map(roomMembers.map((member) => [member.player_id, member.seat]))
-  const publicEvents: Array<{ eventType: string; payload: Record<string, unknown> }> = []
+  const publicEvents: Array<{ eventType: string; payload: Record<string, unknown>; privatePayload?: Record<string, unknown> }> = []
   for (const event of events) {
     if (event.type === 'bidPlaced') publicEvents.push({ eventType: 'auction.bidPlaced', payload: { amount: event.amount, bidderSeat: seatFor.get(String(event.playerId)) } })
     if (event.type === 'auctionPassed') publicEvents.push({ eventType: 'auction.passed', payload: { seat: seatFor.get(String(event.playerId)) } })
     if (event.type === 'auctionWon') publicEvents.push({ eventType: 'auction.won', payload: { amount: event.amount, harborMasterSeat: seatFor.get(String(event.playerId)) } })
+    if (event.type === 'voyageSettled') {
+      const deltas = Array.isArray(event.playerDeltas) ? event.playerDeltas as Array<{ playerId: string; pesosDelta: number }> : []
+      publicEvents.push({ eventType: 'voyage.settled', payload: { voyage: event.voyage, boats: event.boats, market: event.market }, privatePayload: Object.fromEntries(deltas.map((delta) => [delta.playerId, { pesosDelta: delta.pesosDelta }])) })
+    }
   }
   return publicEvents
 }
@@ -100,7 +147,7 @@ export class GameService {
   constructor(private readonly pool: Pool, private readonly pepper: string, private readonly now: () => number = Date.now, private readonly onIsolate: (roomCode: string) => void = () => undefined) {}
 
   async latest(sessionId: string, roomCode: string): Promise<GameCommandResult> {
-    return withTransaction(this.pool, async (client) => {
+    return withTransaction<GameCommandResult>(this.pool, async (client) => {
       const session = await lockSession(client, sessionId)
       const authError = sessionError(session, this.now())
       if (authError || !session?.active_room_id) return reject(authError ?? 'NOT_MEMBER')
@@ -119,6 +166,22 @@ export class GameService {
         return reject('ROOM_ISOLATED')
       }
       return { kind: 'accepted', snapshot: project(room, game.snapshot, roomMembers, viewer) }
+    })
+  }
+
+  async history(sessionId: string, roomCode: string): Promise<GameHistoryResult> {
+    return withTransaction<GameHistoryResult>(this.pool, async (client) => {
+      const rejectHistory = (code: GameErrorCode): GameHistoryResult => ({ kind: 'rejected', code })
+      const session = await lockSession(client, sessionId)
+      const authError = sessionError(session, this.now())
+      if (authError || !session?.active_room_id) return rejectHistory(authError ?? 'NOT_MEMBER')
+      const room = await lockRoom(client, session.active_room_id)
+      if (!room || room.code !== roomCode) return rejectHistory('ROOM_NOT_FOUND')
+      const roomMembers = await members(client, room.id)
+      const viewer = roomMembers.find((member) => member.session_id === sessionId)
+      if (!viewer) return rejectHistory('NOT_MEMBER')
+      const result = await client.query<{ public_payload: unknown; private_payload: Record<string, { pesosDelta: number }> | null }>('SELECT public_payload, private_payload FROM events WHERE room_id = $1 AND event_type = $2 ORDER BY revision', [room.id, 'voyage.settled'])
+      return { kind: 'accepted', history: SettlementHistorySchema.parse({ settlements: result.rows.map((event) => ({ voyage: Number((event.public_payload as { voyage?: number }).voyage ?? 0), public: event.public_payload, self: event.private_payload?.[viewer.player_id] ?? null })) }) }
     })
   }
 
@@ -171,7 +234,6 @@ export class GameService {
       if (room.status === 'isolated') return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_ISOLATED')
       if (room.status !== 'playing') return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_CLOSED')
       if (room.revision !== input.expectedRevision) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'REVISION_CONFLICT')
-      if (input.action.type !== 'bid' && input.action.type !== 'passAuction') return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ACTION_NOT_AVAILABLE')
       const row = await client.query<GameRow>('SELECT snapshot, seed, state_version, rules_version, protocol_version FROM games WHERE room_id = $1 FOR UPDATE', [room.id])
       const game = row.rows[0]
       if (!game) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'GAME_NOT_FOUND')
@@ -179,16 +241,15 @@ export class GameService {
         await this.isolate(client, room)
         return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_ISOLATED')
       }
-      const action: GameAction = input.action.type === 'bid'
-        ? { type: 'bid', playerId: viewer.player_id, amount: input.action.amount, mortgageShareIds: input.action.mortgageShareIds }
-        : { type: 'passAuction', playerId: viewer.player_id }
+      const action = toGameAction(game.snapshot, viewer.player_id, input.action)
       const transitioned = transition(structuredClone(game.snapshot), action)
       if (!transitioned.ok) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'RULE_REJECTED')
       if (validateState(transitioned.value.state).length > 0) throw new Error('迁移产生非法游戏状态')
+      if (transitioned.value.state.phase.kind === 'gameOver') room.status = 'finished'
       room.revision += 1
-      await client.query('UPDATE rooms SET revision = $1 WHERE id = $2', [room.revision, room.id])
+      await client.query('UPDATE rooms SET status = $1, revision = $2 WHERE id = $3', [room.status, room.revision, room.id])
       await client.query('UPDATE games SET snapshot = $1, updated_at = now() WHERE room_id = $2', [JSON.stringify(transitioned.value.state), room.id])
-      for (const event of publicEvents(transitioned.value.events, roomMembers)) await client.query('INSERT INTO events (room_id, revision, event_type, public_payload) VALUES ($1, $2, $3, $4)', [room.id, room.revision, event.eventType, JSON.stringify(event.payload)])
+      for (const event of publicEvents(transitioned.value.events, roomMembers)) await client.query('INSERT INTO events (room_id, revision, event_type, public_payload, private_payload) VALUES ($1, $2, $3, $4, $5)', [room.id, room.revision, event.eventType, JSON.stringify(event.payload), event.privatePayload === undefined ? null : JSON.stringify(event.privatePayload)])
       const accepted: GameCommandResult = { kind: 'accepted', snapshot: project(room, transitioned.value.state, roomMembers, viewer) }
       await saveCommand(client, room.id, sessionId, input.commandId, requestDigest, accepted, room.revision)
       return accepted

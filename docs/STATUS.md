@@ -90,9 +90,10 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T16：done / `908938b` / 新增焦点圈定、Escape 关闭和焦点恢复的 Dialog；行情变化动画计时器在卸载时清理；错误码映射为中文下一步提示；移动断点、reduced motion 和 44px 触控目标保留。
 - T17：done / `908938b` / Web 版图改为显式资源表并仅打包压缩后的 `game_board.jpg` 与四张 `*_shares.png`；原图保留在 `manila_assets/`。新增预算测试冻结 5 MB 上限，生产构建图片合计约 1.77 MB。
 - T18：done / `908938b` / 新增 3/4/5 人 × 两种海盗规则的权威 HTTP 整局矩阵、财务/生命周期/撤销/进程重启/输入边界 integration；新增三独立 Chromium 完整对局 E2E 和 CI `verify` + `e2e` 两个作业。
-- T19：TODO / 尚未提供生产容器、备份恢复和部署手册；Phase 5 未开始。
-- 当前可启动：T19（Phase 3/4 已完成）。
-- MVP 功能范围已可在本地真实服务链路走完；公网发布仍以 T19 和真实主机验证为前提。
+- T19：done / `626b8e9` / 多阶段 `Dockerfile`、`compose.prod.yaml`（Caddy HTTPS + app + 内部 PostgreSQL）、同源静态服务、生产配置门禁、备份/恢复脚本、`verify:deployment` 自检和 [部署手册](DEPLOYMENT.md) 已交付；本地生产形态、HTTPS/WSS E2E、重启持久化与真实备份恢复演练通过，证据见 4.2。
+- T20：blocked / 工具已就绪（Phase 6 任务与验证脚本已提交），等待真实主机、域名、DNS、TLS 和秘密授权；未执行真实公网部署，也未对外上线。
+- 当前可启动：T20（Phase 5 已完成；Phase 6 需外部条件）。
+- MVP 功能范围和生产部署形态已在本地真实链路验证；真实公网发布仍以 T20 为前提。
 
 ## 4.1 Phase 3/4 验证证据（2026-09-19，提交 `908938b`）
 
@@ -111,7 +112,29 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - 整局浏览器 E2E 为控制时长采用“竞拍放弃、购股跳过”的保守策略；出价、抵押竞拍与购股由三人竞拍 E2E 和 integration 覆盖，不等同于随机策略下的完整资金矩阵。
 - 未在真实 390px/1280px 物理设备上留存截图；移动布局由 CSS 断点、组件测试与浏览器可用性检查覆盖。
 - 大厅超时使用可注入时钟的 integration 验证，未等待真实 24 小时。
-- T19 部署、备份恢复和真实公网故障矩阵仍未实现。
+- T19 部署、备份恢复和真实公网故障矩阵当时未实现；T19 已于提交 `626b8e9` 完成，证据见 4.2，真实公网部分归入 T20。
+
+## 4.2 Phase 5 本地生产形态验证证据（2026-09-19，提交 `626b8e9`）
+
+环境：Node v22.23.2、npm 10.9.8、Docker Engine + Compose v2、PostgreSQL 17-alpine、Caddy 2.8-alpine、Chromium headless。使用 `MANILA_DOMAIN=localhost` 和 Caddy 内部 CA 在 `https://localhost:8443` 完成本地生产形态演练；未使用真实公网域名。
+
+| 验证 | 结果与边界 |
+| --- | --- |
+| `docker build -t manila-app:local .` | 多阶段镜像构建成功；运行时以非 root `manila` 用户、`node --import tsx` 启动，`WEB_DIST_DIR=/app/dist` |
+| `npm run verify:deployment` | 在 `https://localhost:8443` 上 11/11 通过：HTTPS、live/ready、无数据库 URL 泄漏、SPA、hashed asset immutable、无效 Token、Cookie `Secure/HttpOnly/SameSite=Strict`、鉴权 API、登出、匿名 WSS 1008 |
+| `npm run test:e2e`（生产形态） | 经 Caddy HTTPS/WSS 的三条 Chromium 用例全部通过：会话隔离与登出、三人竞拍、三浏览器完整对局（约 27 s） |
+| 应用重启持久化 | `docker compose restart app` 后 `/health/ready` 200；重启前创建的会话 Cookie 调 `/api/session` 仍返回 200；`rooms/games/sessions` 计数不变 |
+| 数据库隔离 | `docker compose port postgres 5432` 无映射；主机 `127.0.0.1:5432` 连接被拒绝 |
+| 日志脱敏 | app 日志中数据库密码与 pepper 命中 0 次 |
+| `npm run db:restore-drill`（生产 Compose） | 备份→`manila_prod_drill` 独立库恢复通过，逐表一致：access_tokens 1、sessions 16、rooms 3、room_members 9、games 3、commands 174、events 27 |
+| 危险配置拒绝 | 空 `AUTH_PEPPER`、非 HTTPS `ALLOWED_ORIGINS`、缺少 `WEB_DIST_DIR`、错误 Origin、未知 `stateVersion` 均有测试覆盖并拒绝 |
+| `npm test` / `npm run build` / `npm run test:integration` | 16 文件 62 测试、Vite 构建、8 文件 23 integration 全部通过 |
+
+未覆盖与限制：
+- 未在真实公网 DNS/TLS/主机上运行；本地演练使用 Caddy 内部 CA，`ALLOW_INSECURE=1` 仅用于自签证书自检。
+- 备份恢复演练在同一 PostgreSQL 实例上完成，未覆盖异地存储和主机级磁盘故障。
+- 升级回滚流程已写明，但未对不兼容迁移做自动化降级演练。
+- 真实公网部署、真实域名证书和三浏览器公网对局属于 [T20](tasks/T20-public-launch.md)，当前 blocked，等待主机、域名和秘密授权。
 
 后续完成记录按任务一行追加：任务 ID / done 或 blocked / 实现提交 / 执行的验证及结果 / 未解决限制。
 修改功能所在路径时同步本页证据链接；审计数字保留其日期，新增验证另记，避免覆盖历史事实。

@@ -4,7 +4,7 @@
 
 ## 1. 结构与依赖边界
 
-单个 Node.js 服务进程 + PostgreSQL + 同源 Web 静态资源。使用现有 React/TypeScript/Vite，新增 Fastify、@fastify/websocket、Zod 和 pg + SQL migrations。
+单个 Node.js 服务进程 + PostgreSQL + 同源 Web 静态资源。使用现有 React/TypeScript/Vite，新增 Fastify、@fastify/websocket、@fastify/static、Zod 和 pg + SQL migrations。
 具体兼容版本在引入依赖的任务中锁定；不引入 ORM、共享 config 包、Redis 或微服务。
 
 | 模块 | 目标路径 | 负责 | 不负责 |
@@ -20,7 +20,7 @@
 前端展示常量以稳定公开字段组织；服务端适配 protocol 输入为 GameAction，并填入会话确定的 playerId。
 迁移任务仅移动实际已有模块；不提前创建空服务端/协议包。标注器和原图留在原位置，避免纯路径改动扩大范围。
 
-生产 Web 入口是网络客户端，不打包 game 的运行时或完整状态类型；规则 fixture 仅用于测试，不属于产品状态。
+生产 Web 入口是网络客户端，不打包 game 的运行时或完整状态类型；规则 fixture 仅用于测试，不属于产品状态。生产镜像在运行时使用锁定版本的 `tsx` 执行服务端 TypeScript，单进程同源提供静态资源、REST 和 WSS。
 
 ## 2. Token、会话和座位
 

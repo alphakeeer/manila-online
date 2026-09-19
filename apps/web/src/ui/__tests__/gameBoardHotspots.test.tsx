@@ -16,7 +16,7 @@ function snapshotWithPlacement(): GameRoomSnapshot {
       highestBid: null,
       market: { nutmeg: 0, silk: 0, jade: 0, ginseng: 0 },
       boats: [{ id: 'boat-1', commodity: 'nutmeg', lane: 0, position: 4, status: 'sailing', berth: null, plundered: false }],
-      accomplices: [],
+      accomplices: [{ id: 'accomplice-1', seat: 1, location: { area: 'smallPilot' } }],
       players: [{ seat: 1, nickname: 'P1' }],
       shareSupply: { nutmeg: 5, silk: 5, jade: 5, ginseng: 5 },
       standings: null,
@@ -46,5 +46,7 @@ describe('GameBoard placement hotspots', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '货物位 1，费用 2' }))
     expect(onSelect).toHaveBeenCalledWith({ area: 'cargo', boatId: 'boat-1', slot: 0 })
+
+    expect(screen.getByLabelText('1 号位同伙：smallPilot')).toBeTruthy()
   })
 })

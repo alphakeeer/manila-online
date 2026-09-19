@@ -28,6 +28,20 @@ function boardHotspotName(location: PlacementChoice): string | null {
   }
 }
 
+function accompliceBoardName(location: { area: string; berth?: 'A' | 'B' | 'C' | undefined; boatId?: string | undefined; slot?: number | undefined }): string | null {
+  switch (location.area) {
+    case 'port': return `port-${location.berth!.toLowerCase()}-accomplice-slot`
+    case 'shipyard': return `shipyard-${location.berth!.toLowerCase()}-accomplice-slot`
+    case 'pirateCaptain': return 'pirate-boat-captain-slot'
+    case 'pirateCrew': return 'pirate-boat-crew-slot'
+    case 'smallPilot': return 'small-pilot-slot'
+    case 'largePilot': return 'large-pilot-slot'
+    case 'insurance': return 'insurance-office-accomplice-slot'
+    case 'cargo': return null
+    default: return null
+  }
+}
+
 interface GameBoardProps {
   snapshot: GameRoomSnapshot
   placementChoice?: PlacementChoice | null
@@ -56,12 +70,29 @@ export function GameBoard({ snapshot, placementChoice = null, onSelectPlacement 
             const selected = placementChoice !== null && samePlacement(placementChoice, option.location)
             return <button key={`${boat.id}-slot-${slot}`} type="button" className={`game-hotspot game-hotspot--cargo${selected ? ' is-selected' : ''}`} style={hotspotStyle(position.canvas, position.item)} aria-label={`货物位 ${slot + 1}，费用 ${option.cost}`} onClick={() => onSelectPlacement?.(option.location)}>{slot + 1}</button>
           })}
+          {snapshot.public.accomplices.filter((token) => token.location?.area === 'cargo' && token.location.boatId === boat.id).map((token) => {
+            const slot = token.location?.slot ?? 0
+            const position = findCargoSlot(annotationDocument, commodity, slot)
+            return <span key={token.id} className={`accomplice-marker accomplice-marker--seat-${token.seat}`} style={hotspotStyle(position.canvas, position.item)} title={`${token.seat} 号位同伙`} aria-label={`${token.seat} 号位同伙在${commodityPresentation(commodity).label}舢板货物位 ${slot + 1}`}>{token.seat}</span>
+          })}
         </article>
       })}
       {boats.filter((boat) => boat.berth).map((boat) => {
         const commodity = boat.commodity!
         const position = findBoardPosition(annotationDocument, `${boat.status === 'port' ? 'port' : 'shipyard'}-${boat.berth!.toLowerCase()}-punt-slot`)
         return <span className={`berthed-share ${commodityPresentation(commodity).className}`} key={boat.id} style={positionStyle(annotationDocument.board, position)}>{commodityPresentation(commodity).label}</span>
+      })}
+      {snapshot.public.accomplices.filter((token) => token.location !== null && token.location.area === 'cargo').map((token) => {
+        const boat = snapshot.public.boats.find((candidate) => candidate.id === token.location?.boatId)
+        if (!boat || !boat.berth) return null
+        const position = findBoardPosition(annotationDocument, `${boat.status === 'port' ? 'port' : 'shipyard'}-${boat.berth.toLowerCase()}-punt-slot`)
+        return <span key={token.id} className={`accomplice-marker accomplice-marker--seat-${token.seat}`} style={hotspotStyle(annotationDocument.board, position)} title={`${token.seat} 号位同伙`} aria-label={`${token.seat} 号位同伙随舢板停靠`}>{token.seat}</span>
+      })}
+      {snapshot.public.accomplices.filter((token) => token.location !== null && token.location.area !== 'cargo').map((token) => {
+        const name = accompliceBoardName(token.location!)
+        if (!name) return null
+        const item = findBoardPosition(annotationDocument, name)
+        return <span key={token.id} className={`accomplice-marker accomplice-marker--seat-${token.seat}`} style={hotspotStyle(annotationDocument.board, item)} title={`${token.seat} 号位同伙`} aria-label={`${token.seat} 号位同伙：${token.location!.area}`}>{token.seat}</span>
       })}
       {placementOptions.map((option) => {
         const name = boardHotspotName(option.location)

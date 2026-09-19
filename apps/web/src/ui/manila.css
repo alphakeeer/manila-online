@@ -195,3 +195,10 @@
 .game-hotspot--cargo { width: 20px; height: 20px; font-size: 10px; }
 .placement-confirm { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border: 1px solid #b79561; background: rgb(255 248 232 / 70%); }
 .placement-confirm p { margin: 0; font-weight: 700; }
+
+.accomplice-marker { position: absolute; z-index: 5; display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid #fff8e5; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 900; box-shadow: 0 1px 4px rgb(0 0 0 / 55%); pointer-events: none; }
+.accomplice-marker--seat-1 { background: #b84b35; }
+.accomplice-marker--seat-2 { background: #2f6f9e; }
+.accomplice-marker--seat-3 { background: #2f8a5d; }
+.accomplice-marker--seat-4 { background: #8a5aa8; }
+.accomplice-marker--seat-5 { background: #b8862f; }

@@ -5,5 +5,6 @@ export default defineConfig({
   timeout: 30_000,
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000',
+    ignoreHTTPSErrors: process.env.PLAYWRIGHT_IGNORE_HTTPS === '1',
   },
 })

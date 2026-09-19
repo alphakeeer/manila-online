@@ -13,6 +13,8 @@ export interface ServerConfig {
   lobbyIdleTimeoutMs?: number
   loginRateLimitMax?: number
   sessionWriteRateLimitMax?: number
+  webDistDir?: string
+  trustProxy?: boolean
 }
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
@@ -71,6 +73,11 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
   if (isProduction && (allowedOrigins.length === 0 || allowedOrigins.some((origin) => !isExactHttpsOrigin(origin)))) {
     throw new Error('生产环境 ALLOWED_ORIGINS 只能包含 HTTPS Origin')
   }
+  const webDistDir = environment.WEB_DIST_DIR?.trim() || undefined
+  if (isProduction && !webDistDir) {
+    throw new Error('生产环境必须配置 WEB_DIST_DIR 以同源提供 Web 静态资源')
+  }
+  const trustProxy = environment.TRUST_PROXY === undefined ? isProduction : environment.TRUST_PROXY === 'true'
   return {
     environment: rawEnvironment,
     host: environment.HOST?.trim() || '127.0.0.1',
@@ -83,5 +90,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     lobbyIdleTimeoutMs: parsePositiveMilliseconds(environment.LOBBY_IDLE_TIMEOUT_MS, 24 * 60 * 60 * 1000, 'LOBBY_IDLE_TIMEOUT_MS'),
     ...(environment.LOGIN_RATE_LIMIT_MAX === undefined ? {} : { loginRateLimitMax: parsePositiveMilliseconds(environment.LOGIN_RATE_LIMIT_MAX, 5, 'LOGIN_RATE_LIMIT_MAX') }),
     ...(environment.SESSION_WRITE_RATE_LIMIT_MAX === undefined ? {} : { sessionWriteRateLimitMax: parsePositiveMilliseconds(environment.SESSION_WRITE_RATE_LIMIT_MAX, 30, 'SESSION_WRITE_RATE_LIMIT_MAX') }),
+    ...(webDistDir === undefined ? {} : { webDistDir }),
+    trustProxy,
   }
 }

@@ -1,0 +1,64 @@
+name: manila-prod
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-manila}
+    volumes:
+      - manila-prod-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Intentionally no ports: PostgreSQL stays on the internal network only.
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: manila-app:${MANILA_IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MANILA_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-manila}
+      AUTH_PEPPER: ${AUTH_PEPPER:?set AUTH_PEPPER in .env}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS in .env}
+      WEB_DIST_DIR: /app/dist
+      TRUST_PROXY: "true"
+      SESSION_TTL_MS: ${SESSION_TTL_MS:-604800000}
+      LOBBY_IDLE_TIMEOUT_MS: ${LOBBY_IDLE_TIMEOUT_MS:-86400000}
+      LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-5}
+      SESSION_WRITE_RATE_LIMIT_MAX: ${SESSION_WRITE_RATE_LIMIT_MAX:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      MANILA_DOMAIN: ${MANILA_DOMAIN:?set MANILA_DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  manila-prod-postgres:
+  caddy-data:
+  caddy-config:

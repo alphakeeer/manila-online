@@ -12,29 +12,33 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm run build --workspace=@manila/web",
+    "db:backup": "scripts/backup-db.sh",
+    "db:migrate": "npm run migrate --workspace=@manila/server",
+    "db:restore-drill": "scripts/restore-drill.sh",
     "dev": "npm run dev --workspace=@manila/web",
     "dev:server": "npm run dev --workspace=@manila/server",
-    "build": "npm run build --workspace=@manila/web",
-    "test": "vitest run --config vitest.config.ts",
-    "test:watch": "vitest --config vitest.config.ts",
     "simulate": "tsx scripts/simulate.ts",
-    "db:migrate": "npm run migrate --workspace=@manila/server",
+    "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "node --env-file-if-exists=.env ./node_modules/playwright/cli.js test",
     "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "tokens": "npm run tokens --workspace=@manila/server",
-    "test:e2e": "node --env-file-if-exists=.env ./node_modules/playwright/cli.js test"
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.6.0",
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.5",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
-    "@playwright/test": "1.63.0",
+    "@vitejs/plugin-react": "^4.6.0",
     "jsdom": "^30.0.1",
     "tsx": "^4.20.4",
     "typescript": "~5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "ws": "^8.21.3"
   }
 }

@@ -106,5 +106,5 @@ WS 身份检查在握手和订阅时执行；WS 消息序列化不能依赖 HTTP
 单台公网服务器，HTTPS 反向代理 + 一个 Node 服务 + PostgreSQL 持久卷。静态资源、REST 与 WSS 同源；生产不使用 Vite dev server。
 /health/live 检查进程，/health/ready 检查迁移与数据库；日志只含请求 ID、roomId、revision、错误码，排除凭证和私有 payload。
 
-T19 提供容器、迁移、健康检查、备份/恢复和回滚操作说明；首次真实部署需有实际主机、域名和秘密配置。
+T19 已提供多阶段 `Dockerfile`、`compose.prod.yaml`（app + Caddy + 不暴露端口的 PostgreSQL）、同源静态服务（`WEB_DIST_DIR`）、备份/恢复脚本、部署自检脚本和 [部署手册](DEPLOYMENT.md)；生产配置强制 HTTPS Origin、pepper、`WEB_DIST_DIR` 与 Secure Cookie。首次真实部署需有实际主机、域名和秘密配置，属于 T20。
 改变上述决策时在本文对应段落记录理由并同步受影响任务。不得因代码容易实现而悄悄改变规则、身份模型或持久化保证。

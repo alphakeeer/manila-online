@@ -39,4 +39,42 @@ describe('loadConfig', () => {
       }),
     ).toThrow('HTTPS')
   })
+
+  it('requires an explicit same-origin web build in production', () => {
+    expect(() =>
+      loadConfig({
+        MANILA_ENV: 'production',
+        DATABASE_URL: 'postgres://manila:secret@localhost/manila',
+        AUTH_PEPPER: 'secret',
+        ALLOWED_ORIGINS: 'https://manila.example',
+      }),
+    ).toThrow('WEB_DIST_DIR')
+
+    expect(
+      loadConfig({
+        MANILA_ENV: 'production',
+        DATABASE_URL: 'postgres://manila:secret@localhost/manila',
+        AUTH_PEPPER: 'secret',
+        ALLOWED_ORIGINS: 'https://manila.example',
+        WEB_DIST_DIR: '/srv/manila/dist',
+      }),
+    ).toMatchObject({
+      secureCookies: true,
+      trustProxy: true,
+      webDistDir: '/srv/manila/dist',
+    })
+  })
+
+  it('allows disabling proxy trust explicitly', () => {
+    expect(
+      loadConfig({
+        MANILA_ENV: 'production',
+        DATABASE_URL: 'postgres://manila:secret@localhost/manila',
+        AUTH_PEPPER: 'secret',
+        ALLOWED_ORIGINS: 'https://manila.example',
+        WEB_DIST_DIR: '/srv/manila/dist',
+        TRUST_PROXY: 'false',
+      }).trustProxy,
+    ).toBe(false)
+  })
 })

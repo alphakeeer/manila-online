@@ -38,6 +38,42 @@ jobs:
       - run: npm run simulate -- --games 20 --players 4 --seed 20260918
       - run: npm run simulate -- --games 20 --players 5 --seed 20260918
 
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t manila-app:ci .
+      - name: Start production-form containers
+        run: |
+          docker network create manila-ci
+          docker run -d --name manila-ci-postgres --network manila-ci             -e POSTGRES_USER=manila -e POSTGRES_PASSWORD=ci-password -e POSTGRES_DB=manila             postgres:17-alpine
+          for attempt in $(seq 1 30); do
+            docker exec manila-ci-postgres pg_isready -U manila -d manila && break
+            sleep 2
+          done
+          docker run -d --name manila-ci-app --network manila-ci -p 3000:3000             -e MANILA_ENV=production -e HOST=0.0.0.0 -e PORT=3000 -e WEB_DIST_DIR=/app/dist             -e DATABASE_URL=postgresql://manila:ci-password@manila-ci-postgres:5432/manila             -e AUTH_PEPPER=ci-container-pepper -e ALLOWED_ORIGINS=https://example.test             -e TRUST_PROXY=true manila-app:ci
+          for attempt in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3000/health/ready > /dev/null && exit 0
+            sleep 2
+          done
+          echo 'container did not become ready'
+          docker logs manila-ci-app
+          exit 1
+      - name: Smoke production runtime
+        run: |
+          curl -fsS http://127.0.0.1:3000/ | grep -q '<div id="root">'
+          TOKEN=$(docker exec manila-ci-app node --import tsx apps/server/scripts/tokens.ts create ci | sed -n 's/^Token: //p' | head -1)
+          test -n "$TOKEN"
+          curl -fsS -D /tmp/headers -o /tmp/login.json -X POST http://127.0.0.1:3000/api/session             -H 'content-type: application/json' -H 'origin: https://example.test'             --data "{"token":"$TOKEN"}"
+          grep -qi 'set-cookie:.*HttpOnly' /tmp/headers
+          grep -qi 'set-cookie:.*Secure' /tmp/headers
+          grep -qi 'set-cookie:.*SameSite=Strict' /tmp/headers
+      - name: Container diagnostics
+        if: failure()
+        run: |
+          docker logs manila-ci-app || true
+          docker logs manila-ci-postgres || true
+
   e2e:
     runs-on: ubuntu-latest
     services:

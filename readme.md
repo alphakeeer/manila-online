@@ -26,6 +26,8 @@
 - `apps/server/src/game/`：权威游戏命令、私有投影、结算历史和存档隔离。
 - `apps/server/src/realtime/`：按房间串行化的接收者快照、presence 与撤销监听。
 - `tests/integration/`：真实 PostgreSQL 的会话、大厅、竞拍、财务、生命周期和 3/4/5 人整局测试；`tests/e2e/` 为 Chromium 全链路用例。
+- `Dockerfile`、`compose.prod.yaml`、`deploy/Caddyfile`：多阶段镜像与单机公网形态（Caddy HTTPS + app + 不暴露端口的 PostgreSQL）。
+- `scripts/backup-db.sh`、`scripts/restore-drill.sh`、`scripts/verify-deployment.mjs`：备份、独立恢复演练和部署自检。
 - `packages/protocol/src/`：登录、会话与稳定 API 错误码的严格 Zod schema。
 - `scripts/simulate.ts`：随机整局验收；不是产品 AI。
 - `annotator/`：静态标注工具和语义坐标 JSON；可直接打开 `annotator/index.html`，导入已有 JSON 后编辑。
@@ -76,4 +78,16 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 E2E_ACCESS_TOKEN=... npm run test:e2e
 
 登录后可创建或输入房间码加入一个最多 5 人的私人大厅。大厅短轮询成员和准备状态；创建、加入、准备、规则变体和离开都带随机 `commandId`，已入房命令还带当前 `revision`，因此超时重试不会重复修改状态。房主始终是最低有效座位；成员变更、离开或海盗规则变更会清空全员准备。开局后服务器以持久快照推进竞拍、购股、选货、下水、放置、三轮移动、领航、海盗、财务和结算，并向每个座位投影私有视图；WebSocket 只推送接收者快照和 presence。公开房间列表和聊天仍未实现。
 
-完整对局已在本地真实 PostgreSQL + Chromium 链路验证；公网部署、备份恢复和运维手册属于 Phase 5（T19），尚未完成。
+## 生产部署
+
+单机公网部署使用 Caddy 自动 HTTPS、同源 app 容器和独立 PostgreSQL 卷；数据库不映射主机端口。完整步骤、升级/回滚、备份恢复和 pepper 保管见 [部署手册](docs/DEPLOYMENT.md)。
+
+```bash
+cp .env.production.example .env   # 填写真实域名、HTTPS Origin、数据库密码和 AUTH_PEPPER
+docker compose -f compose.prod.yaml up -d --build
+PUBLIC_BASE_URL=https://你的域名 E2E_ACCESS_TOKEN=... npm run verify:deployment
+COMPOSE_FILE=compose.prod.yaml npm run db:backup -- backup/manila.dump
+COMPOSE_FILE=compose.prod.yaml npm run db:restore-drill
+```
+
+本地已验证容器构建、HTTPS/HTTP 静态服务、匿名 WSS 拒绝、应用重启后会话保留和备份→独立库恢复。真实公网 DNS/TLS/主机验收属于 Phase 6（T20），需要主机、域名和秘密并明确授权后才能执行，当前尚未上线。

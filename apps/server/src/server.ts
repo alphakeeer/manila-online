@@ -1,6 +1,9 @@
 import cookie from '@fastify/cookie'
+import fastifyStatic from '@fastify/static'
 import websocket from '@fastify/websocket'
+import { existsSync } from 'node:fs'
 import type { IncomingHttpHeaders } from 'node:http'
+import { resolve } from 'node:path'
 import {
   CreateRoomRequestSchema,
   GameCommandRequestSchema,
@@ -102,7 +105,7 @@ function gameStatus(code: GameErrorCode) {
 }
 
 export function buildServer(config: ServerConfig, dependencies: ServerDependencies): FastifyInstance {
-  const app = Fastify({ logger })
+  const app = Fastify({ logger, trustProxy: config.trustProxy ?? false })
   const clock = dependencies.clock ?? Date
   const loginLimiter = new FixedWindowRateLimiter(dependencies.rateLimits?.loginMax ?? config.loginRateLimitMax ?? 5, 60_000, clock)
   const sessionWriteLimiter = new FixedWindowRateLimiter(dependencies.rateLimits?.sessionWriteMax ?? config.sessionWriteRateLimitMax ?? 30, 60_000, clock)
@@ -149,6 +152,25 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
 
   app.register(cookie)
   app.register(websocket, { options: { maxPayload: 8 * 1024 } })
+  if (config.webDistDir) {
+    const root = resolve(config.webDistDir)
+    if (!existsSync(root)) throw new Error(`WEB_DIST_DIR 不存在：${root}`)
+    app.register(fastifyStatic, {
+      root,
+      prefix: '/',
+      wildcard: false,
+      cacheControl: false,
+      setHeaders(response, filePath) {
+        if (filePath.includes(`${resolve(root)}/assets/`)) response.setHeader('cache-control', 'public, max-age=31536000, immutable')
+        else response.setHeader('cache-control', 'no-cache')
+      },
+    })
+    app.setNotFoundHandler((request, reply) => {
+      const url = request.raw.url ?? ''
+      if (request.method === 'GET' && !url.startsWith('/api/') && !url.startsWith('/health/')) return reply.sendFile('index.html')
+      return sendError(reply, 404, 'ROOM_NOT_FOUND')
+    })
+  }
 
   async function authenticate(request: { cookies: Record<string, string | undefined> }, reply: Parameters<typeof sendError>[0]) {
     const credential = request.cookies[sessionCookieName]

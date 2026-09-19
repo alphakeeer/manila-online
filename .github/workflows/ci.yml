@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: manila
+          POSTGRES_PASSWORD: manila-ci
+          POSTGRES_DB: manila
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U manila -d manila"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://manila:manila-ci@127.0.0.1:5432/manila
+      TEST_DATABASE_URL: postgresql://manila:manila-ci@127.0.0.1:5432/manila_test
+      AUTH_PEPPER: ci-only-pepper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: PGPASSWORD=manila-ci psql -h 127.0.0.1 -U manila -d manila -c 'CREATE DATABASE manila_test'
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:integration
+      - run: npm run simulate -- --games 20 --players 3 --seed 20260918
+      - run: npm run simulate -- --games 20 --players 4 --seed 20260918
+      - run: npm run simulate -- --games 20 --players 5 --seed 20260918

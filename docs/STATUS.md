@@ -82,8 +82,8 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T08：done / `19fd395`、`3bc93d0` / `npm test`、`npm run build`、`npm run test:integration` 通过；真实 WebSocket 验证订阅初始视图、presence、接收者私有隔离和提交后相同 revision 广播；三独立 Chromium 上下文完成创建、准备、随机首位竞拍与同步。生产入口不再依赖 `@manila/game`。
 - T09：done / `656b0fa` / `npm test`、`npm run build`、`npm run test:integration` 通过；客户端快照门禁、断线只读、20 秒心跳、指数重连和 sessionStorage commandId 重试已实现，未知协议版本存档会标记 isolated。进程级故障注入与完整断网 Chromium 情景留待 T18 扩展。
 - T10：done / `908938b` / 购股（commodity 意图由服务端选 supply shareId）、选货、下水协议、服务端适配、接收者视图和表单已接通；非法航线/非整数起点/非港务长操作由 strict schema 或引擎拒绝。三条 Phase 3/4 `playthrough` integration 从开局走到终局，覆盖买股与跳过的路径。
-- T11：done / `908938b` / 放置/放弃协议、版图热点与面板共用确认区（collateral/stowaway/费用）已实现；修复引擎 `sameLocation` 对 JSON 键序敏感导致 PostgreSQL JSONB 回合后重复占位的问题，新增 key 重排回归和版图热点组件测试。
-- T12：done / `908938b` / moveBoat、pilotMove、boardPirate、choosePlunderDestination 适配与 UI 已接通；加强海盗满员挤人提供被挤同伙选择。3/4/5 人 × 标准/加强海盗的真实 HTTP 全链路对局全部到达终局。
+- T11：done / `908938b`、`3eaac0f` / 放置/放弃协议、版图热点与面板共用确认区（collateral/stowaway/费用）已实现；版图显示本人与公开同伙位置（含靠港舢板）。修复引擎 `sameLocation` 对 JSON 键序敏感导致 PostgreSQL JSONB 回合后重复占位的问题，新增 key 重排回归和版图热点/同伙组件测试。
+- T12：done / `908938b`、`3eaac0f` / moveBoat、pilotMove、boardPirate、choosePlunderDestination 适配与 UI 已接通；加强海盗满员挤人提供被挤同伙选择，靠港/修船厂舢板保留同伙标记。3/4/5 人 × 标准/加强海盗的真实 HTTP 全链路对局全部到达终局。
 - T13：done / `908938b` / 独立 mortgageShare/redeemShare 协议与个人财务面板已实现；非当前行动玩家可在竞拍等待时贷款/赎回，伪造 shareId、重复抵押、过期 revision 均被拒绝且不改变状态。
 - T14：done / `908938b` / `settleVoyage` 增加结构化只读 `incomes`/`payments`（货物、海盗、港口/修船厂泊位、强制贷款、保险赔付与港口金库代付），协议分别投影公开船只/行情与本人明细，历史读取按座位过滤；新增分支测试验证账目与实际现金差一致。
 - T15：done / `908938b` / 主机 CLI 可脱敏列出/关闭房间；关闭房间保持只读快照并拒绝新命令；24 小时无活动 lobby 自动关闭并释放成员；PostgreSQL `LISTEN/NOTIFY` 撤销监听会立即关闭关联 WebSocket。真实数据库并发/重启/关闭测试通过。
@@ -101,7 +101,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 | 验证 | 结果与边界 |
 | --- | --- |
 | `npm test` | 16 文件、59 测试通过；新增结算分支、JSON 键序、Dialog 焦点、行情计时器、资源预算和版图热点用例 |
-| `npm run build` | `tsc --noEmit` + Vite 成功；图片约 1.77 MB（board 814.40 kB + 四张 share 236.72–243.86 kB），JS 367.22 kB（gzip 110.70 kB），CSS 13.50 kB |
+| `npm run build` | `tsc --noEmit` + Vite 成功；图片约 1.77 MB（board 814.40 kB + 四张 share 236.72–243.86 kB），JS 368.89 kB（gzip 110.91 kB），CSS 13.97 kB |
 | `npm run test:integration` | 8 文件、23 测试通过；含 3/4/5 人 × 标准/加强海盗共 6 局服务端整局、非行动玩家财务、过期 revision、关闭房间只读、空置 lobby、撤销监听和重启恢复 |
 | `npm run test:e2e` | 会话、三人竞拍和三人完整对局 3 条 Chromium 用例通过（完整对局约 30 s；需 `E2E_FULL_GAME=1`、运行中的 Web/服务和 CLI Token） |
 | `npm run simulate` | 3/4/5 人各 20 局、固定 seed `20260918`、交替海盗规则全部状态合法 |

@@ -59,6 +59,18 @@ function phaseSeat(state: GameState, memberByPlayer: Map<string, MemberRow>) {
   return playerId ? memberByPlayer.get(playerId)?.seat ?? null : null
 }
 
+function publicAccompliceId(state: GameState, accompliceId: string) {
+  const index = state.accomplices.findIndex((candidate) => candidate.id === accompliceId)
+  if (index < 0) throw new Error('未知同伙')
+  return `accomplice-${index + 1}`
+}
+
+function internalAccompliceId(state: GameState, publicId: string) {
+  const matched = /^accomplice-([1-9]\d*)$/.exec(publicId)
+  const index = matched ? Number(matched[1]) - 1 : -1
+  return state.accomplices[index]?.id ?? publicId
+}
+
 function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], viewer: MemberRow): GameRoomSnapshot {
   const memberByPlayer = new Map(roomMembers.map((member) => [member.player_id, member]))
   const player = state.players.find((candidate) => candidate.id === viewer.player_id)
@@ -83,7 +95,7 @@ function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], view
                 : decision.kind === 'smallPilot' || decision.kind === 'largePilot'
                   ? { kind: decision.kind, movableBoatIds: [...decision.movableBoatIds], legalMoves: decision.legalMoves.map((moves) => moves.map((move) => ({ ...move }))) }
                   : decision.kind === 'pirateBoarding'
-                    ? { kind: 'pirateBoarding', accompliceId: decision.accompliceId, eligibleBoatIds: [...decision.eligibleBoatIds], displaceableByBoat: decision.displaceableByBoat, canStay: decision.canStay }
+                    ? { kind: 'pirateBoarding', accompliceId: publicAccompliceId(state, decision.accompliceId), eligibleBoatIds: [...decision.eligibleBoatIds], displaceableByBoat: Object.fromEntries(Object.entries(decision.displaceableByBoat).map(([boatId, ids]) => [boatId, ids.map((id) => publicAccompliceId(state, id))])), canStay: decision.canStay }
                     : { kind: 'plunderDestination', boatId: decision.boatId, destinations: [...decision.destinations] }
     : null
   return GameRoomSnapshotSchema.parse({
@@ -95,7 +107,7 @@ function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], view
       highestBid,
       market: state.market,
       boats: state.boats.map((boat) => ({ id: boat.id, commodity: boat.commodity, lane: boat.lane, position: boat.position, status: boat.status, berth: boat.berth, plundered: boat.plundered })),
-      accomplices: state.accomplices.map((accomplice, index) => ({ id: `accomplice-${index + 1}`, seat: memberByPlayer.get(accomplice.playerId)?.seat ?? 0, location: accomplice.location })),
+      accomplices: state.accomplices.map((accomplice) => ({ id: publicAccompliceId(state, accomplice.id), seat: memberByPlayer.get(accomplice.playerId)?.seat ?? 0, location: accomplice.location })),
       players: roomMembers.map((member) => ({ seat: member.seat, nickname: member.nickname })),
       shareSupply: Object.fromEntries(['nutmeg', 'silk', 'jade', 'ginseng'].map((commodity) => [commodity, state.shareSupply.filter((share) => share.commodity === commodity).length])),
       standings: state.phase.kind === 'gameOver' ? getStandings(state).map((standing) => ({ seat: memberByPlayer.get(standing.playerId)?.seat ?? 0, nickname: standing.name, wealth: standing.wealth, winner: standing.winner })) : null,
@@ -119,9 +131,13 @@ function toGameAction(state: GameState, playerId: string, action: GameCommandReq
     case 'passPlacement': return { type: 'passPlacement', playerId }
     case 'moveBoat': return { ...action, playerId }
     case 'pilotMove': return { ...action, playerId }
-    case 'boardPirate': return action.displacedAccompliceId === undefined
-      ? { type: 'boardPirate', playerId, accompliceId: action.accompliceId, boatId: action.boatId }
-      : { type: 'boardPirate', playerId, accompliceId: action.accompliceId, boatId: action.boatId, displacedAccompliceId: action.displacedAccompliceId }
+    case 'boardPirate': {
+      const accompliceId = internalAccompliceId(state, action.accompliceId)
+      const displacedAccompliceId = action.displacedAccompliceId === undefined ? undefined : internalAccompliceId(state, action.displacedAccompliceId)
+      return displacedAccompliceId === undefined
+        ? { type: 'boardPirate', playerId, accompliceId, boatId: action.boatId }
+        : { type: 'boardPirate', playerId, accompliceId, boatId: action.boatId, displacedAccompliceId }
+    }
     case 'choosePlunderDestination': return { ...action, playerId }
     case 'mortgageShare': return { ...action, playerId }
     case 'redeemShare': return { ...action, playerId }

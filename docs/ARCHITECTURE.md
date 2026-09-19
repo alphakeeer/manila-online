@@ -1,6 +1,6 @@
 # 目标架构
 
-状态：MVP 设计，Phase 2 已实现权威首轮竞拍；当前代码事实见 [STATUS](STATUS.md)，范围见 [PROJECT_DIRECTION](PROJECT_DIRECTION.md)。
+状态：MVP 设计，Phase 0–4 已实现并验证；当前代码事实见 [STATUS](STATUS.md)，范围见 [PROJECT_DIRECTION](PROJECT_DIRECTION.md)。
 
 ## 1. 结构与依赖边界
 
@@ -65,7 +65,7 @@ Token 生成和摘要可使用 [Node crypto](https://nodejs.org/api/crypto.html)
 购买命令推荐以 commodity 表达意图；服务端从供应堆选定 shareId，玩家自己的抵押/赎回使用其私有视图中的 shareId。
 DecisionView 按切片扩展；客户端不通过全局 GameState 计算下一位玩家或合法动作。
 
-现有引擎没有完整的结算明细事件。T14 补充只读结算记录，允许增加事件，不改变资金、阶段或 RNG 行为。
+结算通过只读 `voyageSettled` 事件记录逐项收入/支付，公开船只与行情、私有明细分别投影；追加事件不改变资金、阶段或 RNG 行为。
 客户端播放动画不阻塞服务端状态推进，不要求所有人确认动画才能进行下一步。
 
 ## 5. 协议与权威事务

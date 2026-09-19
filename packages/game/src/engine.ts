@@ -21,6 +21,8 @@ import type {
   Player,
   Result,
   RuleError,
+  SettlementIncome,
+  SettlementPayment,
 } from './types'
 
 type TransitionValue = { state: GameState; events: GameEvent[] }
@@ -150,7 +152,10 @@ function transitionAuction(state: GameState, action: GameAction, events: GameEve
 }
 
 function sameLocation(left: AccompliceLocation, right: AccompliceLocation): boolean {
-  return JSON.stringify(left) === JSON.stringify(right)
+  if (left.area !== right.area) return false
+  if (left.area === 'cargo' && right.area === 'cargo') return left.boatId === right.boatId && left.slot === right.slot
+  if ((left.area === 'port' || left.area === 'shipyard') && (right.area === 'port' || right.area === 'shipyard')) return left.berth === right.berth
+  return true
 }
 
 function isOccupied(state: GameState, location: AccompliceLocation): boolean {
@@ -289,12 +294,21 @@ function beginAfterSecondMovement(state: GameState): void {
   beginPlacementRound(state, state.players.length === 3 ? 4 : 3, 2)
 }
 
-function payEvenly(state: GameState, playerIds: string[], total: number): void {
+function payEvenly(
+  state: GameState,
+  playerIds: string[],
+  total: number,
+  detail: Omit<SettlementIncome, 'playerId' | 'amount'>,
+  incomes: SettlementIncome[],
+): void {
   if (playerIds.length === 0) return
   const amount = total / playerIds.length
   for (const playerId of playerIds) {
     const player = playerById(state, playerId)
-    if (player) player.pesos += amount
+    if (player) {
+      player.pesos += amount
+      incomes.push({ playerId, amount, ...detail })
+    }
   }
 }
 
@@ -302,19 +316,26 @@ function settleVoyage(state: GameState, events: GameEvent[]): void {
   const voyage = state.voyage
   const beforePesos = new Map(state.players.map((player) => [player.id, player.pesos]))
   const beforeMarket = { ...state.market }
+  const incomes: SettlementIncome[] = []
+  const payments: SettlementPayment[] = []
   const pirateTokens = state.accomplices.filter((token) => token.location?.area === 'pirateCaptain' || token.location?.area === 'pirateCrew')
   for (const boat of state.boats.filter((candidate) => candidate.plundered && candidate.commodity !== null)) {
-    payEvenly(state, pirateTokens.map((token) => token.playerId), COMMODITY_RULES[boat.commodity!].profit)
+    const commodity = boat.commodity!
+    payEvenly(state, pirateTokens.map((token) => token.playerId), COMMODITY_RULES[commodity].profit, { category: 'plunder', boatId: boat.id, commodity }, incomes)
   }
   for (const boat of state.boats.filter((candidate) => candidate.status === 'port' && !candidate.plundered && candidate.commodity !== null)) {
+    const commodity = boat.commodity!
     const occupants = state.accomplices.filter((token) => token.location?.area === 'cargo' && token.location.boatId === boat.id)
-    payEvenly(state, occupants.map((token) => token.playerId), COMMODITY_RULES[boat.commodity!].profit)
+    payEvenly(state, occupants.map((token) => token.playerId), COMMODITY_RULES[commodity].profit, { category: 'cargo', boatId: boat.id, commodity }, incomes)
   }
   for (const rule of BERTH_RULES) {
     if (state.portBerths[rule.berth]) {
       const token = state.accomplices.find((candidate) => candidate.location?.area === 'port' && candidate.location.berth === rule.berth)
       const player = token ? playerById(state, token.playerId) : undefined
-      if (player) player.pesos += rule.payout
+      if (player) {
+        player.pesos += rule.payout
+        incomes.push({ playerId: player.id, category: 'portBerth', amount: rule.payout, berth: rule.berth })
+      }
     }
   }
 
@@ -325,12 +346,15 @@ function settleVoyage(state: GameState, events: GameEvent[]): void {
       if (!state.shipyardBerths[rule.berth]) continue
       const token = state.accomplices.find((candidate) => candidate.location?.area === 'shipyard' && candidate.location.berth === rule.berth)
       const player = token ? playerById(state, token.playerId) : undefined
-      if (player) player.pesos += rule.payout
+      if (player) {
+        player.pesos += rule.payout
+        incomes.push({ playerId: player.id, category: 'shipyardBerth', amount: rule.payout, berth: rule.berth, paidBy: 'treasury' })
+      }
     }
   } else {
     const liabilities = BERTH_RULES.filter((rule) => state.shipyardBerths[rule.berth] !== undefined).map((rule) => {
       const token = state.accomplices.find((candidate) => candidate.location?.area === 'shipyard' && candidate.location.berth === rule.berth)
-      return { amount: rule.payout, receiverId: token?.playerId ?? null }
+      return { amount: rule.payout, berth: rule.berth, receiverId: token?.playerId ?? null }
     }).filter((liability) => liability.receiverId !== insurancePlayer.id)
     const total = liabilities.reduce((sum, liability) => sum + liability.amount, 0)
     const collateral = [...insurancePlayer.shares]
@@ -341,12 +365,17 @@ function settleVoyage(state: GameState, events: GameEvent[]): void {
       if (!share) break
       share.mortgaged = true
       insurancePlayer.pesos += MORTGAGE_INCOME
+      incomes.push({ playerId: insurancePlayer.id, category: 'forcedMortgage', amount: MORTGAGE_INCOME })
     }
     for (const liability of liabilities) {
       const paid = Math.min(insurancePlayer.pesos, liability.amount)
       insurancePlayer.pesos -= paid
       const receiver = liability.receiverId ? playerById(state, liability.receiverId) : undefined
-      if (receiver) receiver.pesos += liability.amount
+      if (receiver) {
+        receiver.pesos += liability.amount
+        incomes.push({ playerId: receiver.id, category: 'shipyardBerth', amount: liability.amount, berth: liability.berth, paidBy: 'insurance' })
+      }
+      payments.push({ playerId: insurancePlayer.id, category: 'insurance', amount: paid, berth: liability.berth, receiverId: liability.receiverId, coveredByTreasury: liability.amount - paid })
     }
   }
 
@@ -360,6 +389,8 @@ function settleVoyage(state: GameState, events: GameEvent[]): void {
     voyage,
     boats: state.boats.filter((boat) => boat.commodity !== null).map((boat) => ({ id: boat.id, commodity: boat.commodity, status: boat.status, berth: boat.berth, plundered: boat.plundered })),
     market: COMMODITIES.map((commodity) => ({ commodity, from: beforeMarket[commodity], to: state.market[commodity] })),
+    incomes,
+    payments,
     playerDeltas: state.players.map((player) => ({ playerId: player.id, pesosDelta: player.pesos - (beforePesos.get(player.id) ?? player.pesos) })),
   })
   if (COMMODITIES.some((commodity) => state.market[commodity] === 30)) {

@@ -132,6 +132,27 @@ export interface GameEvent {
   [key: string]: unknown
 }
 
+export type SettlementIncomeCategory = 'cargo' | 'plunder' | 'portBerth' | 'shipyardBerth' | 'forcedMortgage'
+
+export interface SettlementIncome {
+  playerId: string
+  category: SettlementIncomeCategory
+  amount: number
+  boatId?: string
+  commodity?: Commodity
+  berth?: Berth
+  paidBy?: 'treasury' | 'insurance'
+}
+
+export interface SettlementPayment {
+  playerId: string
+  category: 'insurance'
+  amount: number
+  berth: Berth
+  receiverId: string | null
+  coveredByTreasury: number
+}
+
 export interface Standing {
   playerId: string
   name: string

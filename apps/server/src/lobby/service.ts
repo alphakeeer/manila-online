@@ -76,6 +76,63 @@ function rejected(code: LobbyErrorCode): CommandResult {
   return { kind: 'rejected', code }
 }
 
+async function detachClosedLobbies(client: PoolClient, roomIds: string[]) {
+  if (roomIds.length === 0) return
+  const detached = await client.query<{ session_id: string }>(
+    `DELETE FROM room_members
+      WHERE room_id = ANY($1::text[])
+        AND NOT EXISTS (SELECT 1 FROM games WHERE games.room_id = room_members.room_id)
+      RETURNING session_id`,
+    [roomIds],
+  )
+  const sessionIds = detached.rows.map((row) => row.session_id)
+  if (sessionIds.length > 0) {
+    await client.query('UPDATE sessions SET active_room_id = NULL WHERE id = ANY($1::text[])', [sessionIds])
+  }
+}
+
+/** Closes lobby rooms with no persistent activity since the idle cutoff. Returns closed room codes. */
+export async function closeInactiveLobbies(pool: Pool, idleMs: number, nowMs: number = Date.now()): Promise<string[]> {
+  const cutoff = new Date(nowMs - idleMs)
+  return withTransaction(pool, async (client) => {
+    const stale = await client.query<{ id: string; code: string }>(
+      `SELECT rooms.id, rooms.code
+         FROM rooms
+        WHERE rooms.status = 'lobby'
+          AND GREATEST(
+            rooms.created_at,
+            COALESCE((SELECT max(room_members.joined_at) FROM room_members WHERE room_members.room_id = rooms.id), rooms.created_at),
+            COALESCE((SELECT max(commands.created_at) FROM commands WHERE commands.room_id = rooms.id), rooms.created_at)
+          ) < $1
+        FOR UPDATE`,
+      [cutoff],
+    )
+    if (stale.rows.length === 0) return []
+    const roomIds = stale.rows.map((row) => row.id)
+    await client.query(
+      `UPDATE rooms SET status = 'closed', closed_at = COALESCE(closed_at, now()), revision = revision + 1 WHERE id = ANY($1::text[])`,
+      [roomIds],
+    )
+    await detachClosedLobbies(client, roomIds)
+    return stale.rows.map((row) => row.code)
+  })
+}
+
+/** Closes one room by code. Lobby rooms without a game release their members. */
+export async function closeRoomByCode(pool: Pool, code: string): Promise<boolean> {
+  return withTransaction(pool, async (client) => {
+    const found = await client.query<{ id: string; status: string }>('SELECT id, status FROM rooms WHERE code = $1 FOR UPDATE', [code])
+    const room = found.rows[0]
+    if (!room || room.status === 'closed') return false
+    await client.query(
+      `UPDATE rooms SET status = 'closed', closed_at = COALESCE(closed_at, now()), revision = revision + 1 WHERE id = $1`,
+      [room.id],
+    )
+    await detachClosedLobbies(client, [room.id])
+    return true
+  })
+}
+
 async function lockSession(client: PoolClient, sessionId: string): Promise<SessionRow | null> {
   const result = await client.query<SessionRow>(
     `SELECT sessions.id, sessions.active_room_id, sessions.expires_at, sessions.revoked_at,
@@ -178,7 +235,7 @@ async function snapshotFor(client: PoolClient, room: RoomRow, viewerSessionId: s
     room: {
       code: room.code,
       revision: room.revision,
-      status: room.status === 'finished' ? 'finished' : room.status === 'playing' ? 'playing' : 'lobby',
+      status: room.status === 'finished' ? 'finished' : room.status === 'playing' ? 'playing' : room.status === 'closed' ? 'closed' : 'lobby',
       pirateVariant: room.pirate_variant,
       members: members.map((member) => ({
         nickname: member.nickname,
@@ -203,7 +260,7 @@ async function activeRoomSnapshot(client: PoolClient, session: SessionRow) {
     [session.active_room_id],
   )
   const current = room.rows[0]
-  if (!current || (current.status !== 'lobby' && current.status !== 'playing' && current.status !== 'finished')) return emptySnapshot
+  if (!current || (current.status !== 'lobby' && current.status !== 'playing' && current.status !== 'finished' && current.status !== 'closed')) return emptySnapshot
   return snapshotFor(client, current, session.id)
 }
 

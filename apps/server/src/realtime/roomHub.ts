@@ -76,6 +76,23 @@ export class RoomHub {
     })
   }
 
+  /** Re-checks every subscribed session so revoked/expired credentials are disconnected immediately. */
+  async revalidate() {
+    for (const roomCode of [...this.subscribers.keys()]) {
+      await this.enqueue(roomCode, async () => {
+        const room = this.subscribers.get(roomCode)
+        if (!room) return
+        for (const subscriber of [...room]) {
+          const result = await this.game.latest(subscriber.sessionId, roomCode)
+          if (result.kind !== 'accepted') {
+            send(subscriber.socket, { type: 'session.expired', code: result.code })
+            subscriber.socket.close(1008)
+          }
+        }
+      })
+    }
+  }
+
   private broadcastPresence(roomCode: string) {
     const room = this.subscribers.get(roomCode)
     if (!room) return

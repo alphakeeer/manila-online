@@ -10,6 +10,8 @@ import {
   type SessionView,
 } from '@manila/protocol'
 import { type FormEvent, useEffect, useState } from 'react'
+import { Dialog } from './Dialog'
+import { errorMessage } from './errorMessages'
 import { GameRoom } from './GameRoom'
 
 type Status =
@@ -38,6 +40,7 @@ export function SessionLobby() {
   const [pirateVariant, setPirateVariant] = useState<PirateVariant>('standard')
   const [error, setError] = useState<ErrorCode | null>(null)
   const [pending, setPending] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   async function refreshLobby() {
     const response = await fetch('/api/lobby', { credentials: 'same-origin' })
@@ -120,7 +123,14 @@ export function SessionLobby() {
   }
 
   async function logout(confirmPlaying = false) {
-    if (confirmPlaying && !window.confirm('退出将撤销当前会话，座位无法自动找回。确定退出吗？')) return
+    if (confirmPlaying) {
+      setConfirmLogout(true)
+      return
+    }
+    await performLogout()
+  }
+
+  async function performLogout() {
     setPending(true)
     setError(null)
     try {
@@ -164,13 +174,13 @@ export function SessionLobby() {
           <input id="access-token" name="token" value={token} onChange={(event) => setToken(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} disabled={pending} />
           <button type="submit" disabled={pending}>{pending ? '正在进入…' : '进入大厅'}</button>
         </form>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert">{errorMessage(error)}</p>}
       </main>
     )
   }
 
   const room = snapshot?.room
-  if (room?.status === 'playing' || room?.status === 'finished') {
+  if (room?.status === 'playing' || room?.status === 'finished' || room?.status === 'closed') {
     return <GameRoom roomCode={room.code} initialSnapshot={gameSnapshot} onSessionExpired={() => { setGameSnapshot(null); setSnapshot(null); setStatus({ kind: 'signedOut' }) }} onLogout={() => void logout(true)} />
   }
   return (
@@ -200,8 +210,13 @@ export function SessionLobby() {
           </form>
         </section>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{errorMessage(error)}</p>}
       <button type="button" onClick={() => void logout()} disabled={pending}>退出</button>
+      {confirmLogout && <Dialog title="确认退出游戏" onClose={() => setConfirmLogout(false)}>
+        <p>退出将撤销当前会话，正在进行的座位无法自动找回。</p>
+        <button type="button" disabled={pending} onClick={() => { setConfirmLogout(false); void performLogout() }}>确认退出</button>
+        <button type="button" disabled={pending} onClick={() => setConfirmLogout(false)}>取消</button>
+      </Dialog>}
     </main>
   )
 }

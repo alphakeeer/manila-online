@@ -1,5 +1,6 @@
 import { createPool } from '../src/persistence/database.js'
 import { loadConfig } from '../src/config.js'
+import { closeRoomByCode } from '../src/lobby/service.js'
 
 const [command, roomCode] = process.argv.slice(2)
 if ((command !== 'list' && command !== 'close') || (command === 'close' && !roomCode)) {
@@ -14,9 +15,10 @@ try {
     const result = await pool.query<{ code: string; status: string; revision: number; member_count: string; created_at: Date }>(`SELECT rooms.code, rooms.status, rooms.revision, count(room_members.session_id) AS member_count, rooms.created_at FROM rooms LEFT JOIN room_members ON room_members.room_id = rooms.id GROUP BY rooms.id ORDER BY rooms.created_at DESC`)
     for (const room of result.rows) console.log(`${room.code}\t${room.status}\trevision=${room.revision}\tmembers=${room.member_count}\t${room.created_at.toISOString()}`)
   } else {
-    const result = await pool.query('UPDATE rooms SET status = $1, closed_at = COALESCE(closed_at, now()), revision = revision + 1 WHERE code = $2 AND status <> $1 RETURNING code', ['closed', roomCode!.trim().toUpperCase()])
-    if (result.rowCount === 0) throw new Error('未找到可关闭房间')
-    console.log(`已关闭房间 ${roomCode!.trim().toUpperCase()}`)
+    const code = roomCode!.trim().toUpperCase()
+    const closed = await closeRoomByCode(pool, code)
+    if (!closed) throw new Error('未找到可关闭房间')
+    console.log(`已关闭房间 ${code}`)
   }
 } finally {
   await pool.end()

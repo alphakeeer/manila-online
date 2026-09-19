@@ -37,3 +37,65 @@ jobs:
       - run: npm run simulate -- --games 20 --players 3 --seed 20260918
       - run: npm run simulate -- --games 20 --players 4 --seed 20260918
       - run: npm run simulate -- --games 20 --players 5 --seed 20260918
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: manila
+          POSTGRES_PASSWORD: manila-ci
+          POSTGRES_DB: manila
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U manila -d manila"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://manila:manila-ci@127.0.0.1:5432/manila
+      AUTH_PEPPER: ci-only-pepper
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      MANILA_ENV: development
+      PORT: '3000'
+      SESSION_WRITE_RATE_LIMIT_MAX: '100000'
+      LOGIN_RATE_LIMIT_MAX: '1000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run db:migrate
+      - name: Start server and web
+        run: |
+          npm run start --workspace=@manila/server > /tmp/manila-server.log 2>&1 &
+          npm run dev --workspace=@manila/web -- --host 127.0.0.1 --port 5173 > /tmp/manila-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/health/ready > /dev/null && curl -sf http://127.0.0.1:5173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'server did not become ready'
+          cat /tmp/manila-server.log
+          cat /tmp/manila-vite.log
+          exit 1
+      - name: Create E2E access token
+        run: |
+          TOKEN=$(npm run tokens -- create ci-e2e | sed -n 's/^Token: //p' | head -1)
+          test -n "$TOKEN"
+          echo "E2E_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      - run: PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 E2E_FULL_GAME=1 npm run test:e2e
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            test-results/
+            /tmp/manila-server.log
+            /tmp/manila-vite.log
+          if-no-files-found: ignore

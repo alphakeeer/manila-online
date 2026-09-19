@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { commodityPresentation, type Commodity } from './commodityPresentation'
 
 const sourceSize = { width: 1112, height: 2183 }
@@ -22,12 +22,30 @@ function positionStyle(point: { x: number; y: number }): CSSProperties {
 }
 
 export function MarketPriceTrack({ market }: { market: Record<Commodity, number> }) {
+  const previous = useRef<Record<Commodity, number> | null>(null)
+  const [moving, setMoving] = useState<ReadonlyArray<Commodity>>([])
+  const marketKey = marketColumns.map((commodity) => market[commodity]).join(',')
+
+  useEffect(() => {
+    const last = previous.current
+    previous.current = { ...market }
+    if (!last) return
+    const changed = marketColumns.filter((commodity) => market[commodity] !== last[commodity])
+    if (changed.length === 0) return
+    setMoving(changed)
+    const timer = window.setTimeout(() => setMoving([]), 720)
+    return () => window.clearTimeout(timer)
+    // marketKey captures the observable market values; the object identity changes on every snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketKey])
+
   return <div className="market-price-track" aria-label="商品市价轨道">
     {marketValues.flatMap((value, row) => marketColumns.map((commodity, column) => <span key={`${commodity}-${value}`} className={`market-cell${market[commodity] === value ? ' highlighted' : ''}`} aria-label={`行情格：${commodityPresentation(commodity).label}，${value}`} style={{ ...positionStyle(pointAt(row, column)), width: `${(calibration.cellSize.width / sourceSize.width) * 100}%`, height: `${(calibration.cellSize.height / sourceSize.height) * 100}%` }} />))}
     {marketColumns.map((commodity) => {
       const value = market[commodity]
       const row = marketValues.indexOf(value as typeof marketValues[number])
-      return <span key={commodity} className={`market-marker market-marker--${commodity}`} aria-label={`${commodityPresentation(commodity).label}行情标记：${value}`} style={positionStyle(pointAt(row, marketColumns.indexOf(commodity)))} />
+      const className = `market-marker market-marker--${commodity}${moving.includes(commodity) ? ' is-moving' : ''}`
+      return <span key={commodity} className={className} aria-label={`${commodityPresentation(commodity).label}行情标记：${value}`} style={positionStyle(pointAt(row, marketColumns.indexOf(commodity)))} />
     })}
   </div>
 }

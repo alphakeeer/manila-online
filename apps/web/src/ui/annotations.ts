@@ -76,13 +76,25 @@ export function findSharePosition(document: AnnotationDocument, commodity: strin
 
 const shareCanvasByCommodity = { jade: 'share-1', nutmeg: 'share-2', silk: 'share-3', ginseng: 'share-4' } as const
 
-export function findCargoSlotPosition(document: AnnotationDocument, commodity: keyof typeof shareCanvasByCommodity, slot: number): AnnotationItem {
+export function findCargoSlot(document: AnnotationDocument, commodity: keyof typeof shareCanvasByCommodity, slot: number): { canvas: AnnotationCanvas; item: AnnotationItem } {
   const canvas = document.shares.find((share) => share.id === shareCanvasByCommodity[commodity])
   if (!canvas) throw new Error(`缺少股份画布：${commodity}`)
   const positions = canvas.items.filter((item) => item.name.startsWith(`${commodity}-cargo-slot-`)).sort((left, right) => left.name.localeCompare(right.name))
-  const position = positions[slot]
-  if (!position) throw new Error(`缺少货物同伙标注：${commodity} ${slot}`)
-  return position
+  const item = positions[slot]
+  if (!item) throw new Error(`缺少货物同伙标注：${commodity} ${slot}`)
+  return { canvas, item }
+}
+
+export function findCargoSlotPosition(document: AnnotationDocument, commodity: keyof typeof shareCanvasByCommodity, slot: number): AnnotationItem {
+  return findCargoSlot(document, commodity, slot).item
+}
+
+export function hotspotStyle(canvas: AnnotationCanvas, item: AnnotationItem): CSSProperties {
+  return {
+    left: `${(item.x / canvas.width) * 100}%`,
+    top: `${(item.y / canvas.height) * 100}%`,
+    transform: 'translate(-50%, -50%)',
+  }
 }
 
 export function positionStyle(canvas: AnnotationCanvas, item: AnnotationItem): CSSProperties {

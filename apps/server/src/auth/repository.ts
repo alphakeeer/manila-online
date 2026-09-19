@@ -33,12 +33,18 @@ export async function createAccessToken(
   )
 }
 
+async function notifyRevocation(database: Database, payload: { kind: 'token' | 'session'; id: string }) {
+  await database.query('SELECT pg_notify($1, $2)', ['manila_revocation', JSON.stringify(payload)])
+}
+
 export async function revokeAccessToken(database: Database, tokenId: string) {
   const result = await database.query(
     'UPDATE access_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE id = $1 RETURNING id',
     [tokenId],
   )
-  return result.rowCount === 1
+  if (result.rowCount !== 1) return false
+  await notifyRevocation(database, { kind: 'token', id: tokenId })
+  return true
 }
 
 export async function findAccessTokenByDigest(database: Database, digest: string) {
@@ -76,4 +82,5 @@ export async function revokeSession(database: Database, sessionId: string) {
     'UPDATE sessions SET revoked_at = COALESCE(revoked_at, now()) WHERE id = $1',
     [sessionId],
   )
+  await notifyRevocation(database, { kind: 'session', id: sessionId })
 }

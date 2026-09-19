@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomInt } from 'node:crypto'
-import { createGame, getDecision, getStandings, transition, validateState, type GameAction, type GameEvent, type GameState } from '@manila/game'
+import { createGame, getDecision, getStandings, transition, validateState, type GameAction, type GameEvent, type GameState, type SettlementIncome, type SettlementPayment } from '@manila/game'
 import { GameRoomSnapshotSchema, SettlementHistorySchema, PROTOCOL_VERSION, type GameCommandRequest, type GameRoomSnapshot, type PirateVariant, type SettlementHistory } from '@manila/protocol'
 import type { Pool, PoolClient } from 'pg'
 import { withTransaction } from '../persistence/database.js'
@@ -99,7 +99,7 @@ function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], view
                     : { kind: 'plunderDestination', boatId: decision.boatId, destinations: [...decision.destinations] }
     : null
   return GameRoomSnapshotSchema.parse({
-    room: { code: room.code, revision: room.revision, pirateVariant: room.pirate_variant, status: room.status === 'finished' ? 'finished' : 'playing' },
+    room: { code: room.code, revision: room.revision, pirateVariant: room.pirate_variant, status: room.status === 'finished' ? 'finished' : room.status === 'closed' ? 'closed' : 'playing', readOnly: room.status !== 'playing' },
     public: {
       voyage: state.voyage,
       phase: { kind: state.phase.kind, currentSeat: phaseSeat(state, memberByPlayer), dice: state.phase.kind === 'movementOrder' ? state.phase.dice : null },
@@ -153,14 +153,33 @@ function publicEvents(events: GameEvent[], roomMembers: MemberRow[]): Array<{ ev
     if (event.type === 'auctionWon') publicEvents.push({ eventType: 'auction.won', payload: { amount: event.amount, harborMasterSeat: seatFor.get(String(event.playerId)) } })
     if (event.type === 'voyageSettled') {
       const deltas = Array.isArray(event.playerDeltas) ? event.playerDeltas as Array<{ playerId: string; pesosDelta: number }> : []
-      publicEvents.push({ eventType: 'voyage.settled', payload: { voyage: event.voyage, boats: event.boats, market: event.market }, privatePayload: Object.fromEntries(deltas.map((delta) => [delta.playerId, { pesosDelta: delta.pesosDelta }])) })
+      const incomes = Array.isArray(event.incomes) ? event.incomes as SettlementIncome[] : []
+      const payments = Array.isArray(event.payments) ? event.payments as SettlementPayment[] : []
+      const privateByPlayer = new Map<string, { incomes: Array<Omit<SettlementIncome, 'playerId'>>; payments: Array<Omit<SettlementPayment, 'playerId'>>; pesosDelta: number }>()
+      for (const delta of deltas) privateByPlayer.set(delta.playerId, { incomes: [], payments: [], pesosDelta: delta.pesosDelta })
+      for (const income of incomes) {
+        const { playerId, ...rest } = income
+        privateByPlayer.get(playerId)?.incomes.push(rest)
+      }
+      for (const payment of payments) {
+        const { playerId, ...rest } = payment
+        privateByPlayer.get(playerId)?.payments.push(rest)
+      }
+      publicEvents.push({ eventType: 'voyage.settled', payload: { voyage: event.voyage, boats: event.boats, market: event.market }, privatePayload: Object.fromEntries(privateByPlayer) })
     }
   }
   return publicEvents
 }
 
 export class GameService {
-  constructor(private readonly pool: Pool, private readonly pepper: string, private readonly now: () => number = Date.now, private readonly onIsolate: (roomCode: string) => void = () => undefined) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly pepper: string,
+    private readonly now: () => number = Date.now,
+    private readonly onIsolate: (roomCode: string) => void = () => undefined,
+    private readonly randomSeed: () => number = () => randomBytes(4).readUInt32BE(0),
+    private readonly pickIndex: (count: number) => number = (count) => randomInt(count),
+  ) {}
 
   async latest(sessionId: string, roomCode: string): Promise<GameCommandResult> {
     return withTransaction<GameCommandResult>(this.pool, async (client) => {
@@ -170,7 +189,7 @@ export class GameService {
       const room = await lockRoom(client, session.active_room_id)
       if (!room || room.code !== roomCode) return reject('ROOM_NOT_FOUND')
       if (room.status === 'isolated') return reject('ROOM_ISOLATED')
-      if (room.status !== 'playing' && room.status !== 'finished') return reject('ROOM_CLOSED')
+      if (room.status !== 'playing' && room.status !== 'finished' && room.status !== 'closed') return reject('ROOM_CLOSED')
       const roomMembers = await members(client, room.id)
       const viewer = roomMembers.find((member) => member.session_id === sessionId)
       if (!viewer) return reject('NOT_MEMBER')
@@ -196,7 +215,7 @@ export class GameService {
       const roomMembers = await members(client, room.id)
       const viewer = roomMembers.find((member) => member.session_id === sessionId)
       if (!viewer) return rejectHistory('NOT_MEMBER')
-      const result = await client.query<{ public_payload: unknown; private_payload: Record<string, { pesosDelta: number }> | null }>('SELECT public_payload, private_payload FROM events WHERE room_id = $1 AND event_type = $2 ORDER BY revision', [room.id, 'voyage.settled'])
+      const result = await client.query<{ public_payload: unknown; private_payload: Record<string, { incomes: unknown[]; payments: unknown[]; pesosDelta: number }> | null }>('SELECT public_payload, private_payload FROM events WHERE room_id = $1 AND event_type = $2 ORDER BY revision', [room.id, 'voyage.settled'])
       return { kind: 'accepted', history: SettlementHistorySchema.parse({ settlements: result.rows.map((event) => ({ voyage: Number((event.public_payload as { voyage?: number }).voyage ?? 0), public: event.public_payload, self: event.private_payload?.[viewer.player_id] ?? null })) }) }
     })
   }
@@ -218,8 +237,8 @@ export class GameService {
       if (room.status !== 'lobby') return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_CLOSED')
       if (room.revision !== input.expectedRevision) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'REVISION_CONFLICT')
       if (roomMembers.length < 3 || roomMembers.length > 5 || roomMembers.some((member) => !member.is_ready)) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'START_NOT_READY')
-      const seed = randomBytes(4).readUInt32BE(0)
-      const starter = roomMembers[randomInt(roomMembers.length)]
+      const seed = this.randomSeed()
+      const starter = roomMembers[this.pickIndex(roomMembers.length)]
       if (!starter) throw new Error('没有可抽取的首位出价者')
       const created = createGame({ players: roomMembers.map((member) => ({ id: member.player_id, name: member.nickname })), startingPlayerId: starter.player_id, seed, pirateVariant: room.pirate_variant })
       if (!created.ok || validateState(created.value).length > 0) throw new Error('创建游戏状态失败')

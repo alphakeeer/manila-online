@@ -10,12 +10,22 @@ export interface ServerConfig {
   allowedOrigins: readonly string[]
   secureCookies: boolean
   sessionTtlMs: number
+  lobbyIdleTimeoutMs?: number
+  loginRateLimitMax?: number
+  sessionWriteRateLimitMax?: number
 }
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
   const value = environment[name]?.trim()
   if (!value) throw new Error(`缺少必需配置：${name}`)
   return value
+}
+
+function parsePositiveMilliseconds(value: string | undefined, fallback: number, name: string): number {
+  if (value === undefined || value === '') return fallback
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} 必须是正整数毫秒`)
+  return parsed
 }
 
 function parsePort(value: string | undefined): number {
@@ -69,6 +79,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     authPepper,
     allowedOrigins,
     secureCookies: isProduction,
-    sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
+    sessionTtlMs: parsePositiveMilliseconds(environment.SESSION_TTL_MS, 7 * 24 * 60 * 60 * 1000, 'SESSION_TTL_MS'),
+    lobbyIdleTimeoutMs: parsePositiveMilliseconds(environment.LOBBY_IDLE_TIMEOUT_MS, 24 * 60 * 60 * 1000, 'LOBBY_IDLE_TIMEOUT_MS'),
+    ...(environment.LOGIN_RATE_LIMIT_MAX === undefined ? {} : { loginRateLimitMax: parsePositiveMilliseconds(environment.LOGIN_RATE_LIMIT_MAX, 5, 'LOGIN_RATE_LIMIT_MAX') }),
+    ...(environment.SESSION_WRITE_RATE_LIMIT_MAX === undefined ? {} : { sessionWriteRateLimitMax: parsePositiveMilliseconds(environment.SESSION_WRITE_RATE_LIMIT_MAX, 30, 'SESSION_WRITE_RATE_LIMIT_MAX') }),
   }
 }

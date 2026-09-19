@@ -7,6 +7,8 @@ import {
   validateState,
   type GameAction,
   type GameState,
+  type SettlementIncome,
+  type SettlementPayment,
 } from '../index'
 
 const players = [
@@ -262,6 +264,100 @@ describe('profit distribution and game end', () => {
     expect(state.market.ginseng).toBe(5)
     expect(state.voyage).toBe(2)
     expect(state.phase.kind).toBe('auction')
+  })
+
+  test('records itemized settlement income and insurance payments', () => {
+    let state = fresh()
+    state.players[0]!.pesos = 0
+    state.players[1]!.pesos = 0
+    state.players[2]!.pesos = 40
+    state.boats[0]!.commodity = 'ginseng'
+    state.boats[0]!.position = 12
+    state.boats[1]!.position = 0
+    state.boats[2]!.position = 0
+    state.accomplices[0]!.location = { area: 'cargo', boatId: 'boat-1', slot: 0 }
+    state.accomplices[4]!.location = { area: 'port', berth: 'A' }
+    state.accomplices[5]!.location = { area: 'shipyard', berth: 'A' }
+    state.accomplices[8]!.location = { area: 'insurance' }
+    state.phase = {
+      kind: 'movementOrder',
+      playerId: 'p1',
+      movementRound: 3,
+      dice: { nutmeg: 1, silk: 1, jade: 1, ginseng: 2 },
+      remainingBoatIds: ['boat-1', 'boat-2', 'boat-3'],
+      movedBoatIds: [],
+    }
+
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-1' })
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-2' })
+    const settled = transition(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-3' })
+    expect(settled.ok).toBe(true)
+    if (!settled.ok) return
+
+    const event = settled.value.events.find((candidate) => candidate.type === 'voyageSettled')
+    expect(event).toBeTruthy()
+    const incomes = event!.incomes as SettlementIncome[]
+    const payments = event!.payments as SettlementPayment[]
+    const deltas = event!.playerDeltas as Array<{ playerId: string; pesosDelta: number }>
+
+    expect(incomes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ playerId: 'p1', category: 'cargo', amount: 18, boatId: 'boat-1', commodity: 'ginseng' }),
+      expect.objectContaining({ playerId: 'p2', category: 'portBerth', amount: 6, berth: 'A' }),
+      expect.objectContaining({ playerId: 'p2', category: 'shipyardBerth', amount: 6, berth: 'A', paidBy: 'insurance' }),
+    ]))
+    expect(payments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ playerId: 'p3', category: 'insurance', amount: 6, berth: 'A', receiverId: 'p2', coveredByTreasury: 0 }),
+      expect.objectContaining({ playerId: 'p3', category: 'insurance', amount: 8, berth: 'B', receiverId: null, coveredByTreasury: 0 }),
+    ]))
+    expect(incomes).toHaveLength(3)
+    expect(payments).toHaveLength(2)
+
+    for (const delta of deltas) {
+      const income = incomes.filter((entry) => entry.playerId === delta.playerId).reduce((sum, entry) => sum + entry.amount, 0)
+      const paid = payments.filter((entry) => entry.playerId === delta.playerId).reduce((sum, entry) => sum + entry.amount, 0)
+      expect(income - paid).toBeCloseTo(delta.pesosDelta)
+    }
+  })
+
+  test('records forced mortgage financing separately from voyage income and treasury coverage', () => {
+    let state = fresh()
+    state.players[0]!.pesos = 0
+    state.players[1]!.pesos = 0
+    state.players[2]!.pesos = 0
+    state.players[2]!.shares = [{ id: 'forced-nutmeg', commodity: 'nutmeg', mortgaged: false }]
+    state.boats[0]!.position = 0
+    state.boats[1]!.position = 0
+    state.boats[2]!.position = 0
+    state.accomplices[4]!.location = { area: 'shipyard', berth: 'A' }
+    state.accomplices[8]!.location = { area: 'insurance' }
+    state.phase = {
+      kind: 'movementOrder',
+      playerId: 'p1',
+      movementRound: 3,
+      dice: { nutmeg: 1, silk: 1, jade: 1, ginseng: 1 },
+      remainingBoatIds: ['boat-1', 'boat-2', 'boat-3'],
+      movedBoatIds: [],
+    }
+
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-1' })
+    state = act(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-2' })
+    const settled = transition(state, { type: 'moveBoat', playerId: 'p1', boatId: 'boat-3' })
+    expect(settled.ok).toBe(true)
+    if (!settled.ok) return
+
+    const event = settled.value.events.find((candidate) => candidate.type === 'voyageSettled')
+    const incomes = event!.incomes as SettlementIncome[]
+    const payments = event!.payments as SettlementPayment[]
+    expect(incomes).toContainEqual({ playerId: 'p3', category: 'forcedMortgage', amount: 12 })
+    expect(incomes).toContainEqual({ playerId: 'p2', category: 'shipyardBerth', amount: 6, berth: 'A', paidBy: 'insurance' })
+    expect(payments).toEqual([
+      { playerId: 'p3', category: 'insurance', amount: 6, berth: 'A', receiverId: 'p2', coveredByTreasury: 0 },
+      { playerId: 'p3', category: 'insurance', amount: 6, berth: 'B', receiverId: null, coveredByTreasury: 2 },
+      { playerId: 'p3', category: 'insurance', amount: 0, berth: 'C', receiverId: null, coveredByTreasury: 15 },
+    ])
+    expect(payments.reduce((sum, payment) => sum + payment.coveredByTreasury, 0)).toBe(17)
+    expect(settled.value.state.players[2]!.shares[0]!.mortgaged).toBe(true)
+    expect(settled.value.state.players[2]!.pesos).toBe(0)
   })
 
   test('scores mortgaged shares and marks every tied leader as a winner', () => {

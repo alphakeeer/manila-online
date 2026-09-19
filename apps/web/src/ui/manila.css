@@ -180,3 +180,18 @@
   .shares-button { right: 12px; bottom: 12px; min-height: 44px; }
   .decision-panel { padding-bottom: 62px; }
 }
+
+.room-status-banner { width: min(1420px, 100%); margin: 12px auto 0; padding: 10px 14px; color: #3d2a1c; border: 1px solid #b79561; background: #f7e8c8; }
+.pirate-target { display: grid; gap: 8px; margin: 10px 0; }
+.pirate-target label { display: grid; gap: 4px; }
+.settlement-entry { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgb(183 149 97 / 42%); }
+.settlement-entry h2 { margin: 0 0 4px; font-size: 15px; color: #8a3f2c; }
+.settlement-entry p { margin: 2px 0; font-size: 13px; }
+.settlement-income { color: #2f6b4f; }
+.settlement-payment { color: #9a3f2c; }
+.settlement-market { color: #6a5230; }
+
+.game-hotspot.is-selected { border-color: #ffe7a3; background: #2f7a5d; box-shadow: 0 0 0 4px rgb(255 224 130 / 45%); }
+.game-hotspot--cargo { width: 20px; height: 20px; font-size: 10px; }
+.placement-confirm { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border: 1px solid #b79561; background: rgb(255 248 232 / 70%); }
+.placement-confirm p { margin: 0; font-weight: 700; }

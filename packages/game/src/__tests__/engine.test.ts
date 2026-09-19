@@ -220,6 +220,24 @@ describe('finance and placement', () => {
     expect(state.phase).toMatchObject({ kind: 'placement', playerId: 'p2' })
   })
 
+  test('keeps cargo slots unique when stored location keys are reordered', () => {
+    const state = reachPlacement()
+    state.accomplices[0]!.location = { area: 'cargo', slot: 0, boatId: 'boat-1' }
+    const decision = getDecision(state)
+    if (decision?.kind !== 'placement') throw new Error('expected placement')
+
+    expect(decision.options).not.toContainEqual({ location: { area: 'cargo', boatId: 'boat-1', slot: 0 }, cost: 2 })
+    expect(decision.options).toContainEqual({ location: { area: 'cargo', boatId: 'boat-1', slot: 1 }, cost: 3 })
+    const result = transition(state, {
+      type: 'placeAccomplice',
+      playerId: 'p1',
+      location: { area: 'cargo', boatId: 'boat-1', slot: 0 },
+      mortgageShareIds: [],
+      stowaway: false,
+    })
+    expect(result).toMatchObject({ ok: false, error: { code: 'POSITION_UNAVAILABLE' } })
+  })
+
   test('offers the pirate captain before the pirate crew position', () => {
     let state = reachPlacement()
     const first = getDecision(state)

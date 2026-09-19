@@ -1,7 +1,8 @@
 import type { GameRoomSnapshot } from '@manila/protocol'
-import { annotationDocument, findBoardPosition, positionStyle } from './annotations'
+import { annotationDocument, findBoardPosition, findCargoSlot, hotspotStyle, positionStyle } from './annotations'
 import { commodityPresentation } from './commodityPresentation'
 import { MarketPriceTrack } from './MarketPriceTrack'
+import { samePlacement, type PlacementChoice } from './placement'
 
 /** Keep production imports explicit: Vite must not glob every archival source image. */
 const assets = {
@@ -13,9 +14,30 @@ const assets = {
 } as const
 const laneName = ['left', 'center', 'right'] as const
 
+function boardHotspotName(location: PlacementChoice): string | null {
+  switch (location.area) {
+    case 'port': return `port-${location.berth!.toLowerCase()}-accomplice-slot`
+    case 'shipyard': return `shipyard-${location.berth!.toLowerCase()}-accomplice-slot`
+    case 'pirateCaptain': return 'pirate-boat-captain-slot'
+    case 'pirateCrew': return 'pirate-boat-crew-slot'
+    case 'smallPilot': return 'small-pilot-slot'
+    case 'largePilot': return 'large-pilot-slot'
+    case 'insurance': return 'insurance-office-accomplice-slot'
+    case 'cargo': return null
+    default: return null
+  }
+}
+
+interface GameBoardProps {
+  snapshot: GameRoomSnapshot
+  placementChoice?: PlacementChoice | null
+  onSelectPlacement?: (location: PlacementChoice) => void
+}
+
 /** The board only receives the public protocol projection. */
-export function GameBoard({ snapshot }: { snapshot: GameRoomSnapshot }) {
+export function GameBoard({ snapshot, placementChoice = null, onSelectPlacement }: GameBoardProps) {
   const boats = snapshot.public.boats.filter((boat) => boat.commodity && boat.lane !== null && boat.position !== null)
+  const placementOptions = snapshot.decision?.kind === 'placement' ? snapshot.decision.options : []
   return <section className="board-panel" aria-label="游戏版图">
     <div className="panel-heading"><div><span>航线实况</span><h2>驶向马尼拉</h2></div><p>第 {snapshot.public.voyage} 航程</p></div>
     <figure className="board-stage">
@@ -24,15 +46,29 @@ export function GameBoard({ snapshot }: { snapshot: GameRoomSnapshot }) {
       {boats.filter((boat) => boat.status === 'sailing').map((boat) => {
         const commodity = boat.commodity!
         const route = findBoardPosition(annotationDocument, `${laneName[boat.lane!]!}-route-space-${boat.position}`)
+        const cargoOptions = placementOptions.filter((option) => option.location.area === 'cargo' && option.location.boatId === boat.id)
         return <article key={boat.id} className="boat-share" style={positionStyle(annotationDocument.board, route)} aria-label={`${commodityPresentation(commodity).label}舢板`}>
           <img src={assets[commodity]} alt="" />
           <strong className={commodityPresentation(commodity).className}>{commodityPresentation(commodity).label}</strong>
+          {cargoOptions.map((option) => {
+            const slot = option.location.slot ?? 0
+            const position = findCargoSlot(annotationDocument, commodity, slot)
+            const selected = placementChoice !== null && samePlacement(placementChoice, option.location)
+            return <button key={`${boat.id}-slot-${slot}`} type="button" className={`game-hotspot game-hotspot--cargo${selected ? ' is-selected' : ''}`} style={hotspotStyle(position.canvas, position.item)} aria-label={`货物位 ${slot + 1}，费用 ${option.cost}`} onClick={() => onSelectPlacement?.(option.location)}>{slot + 1}</button>
+          })}
         </article>
       })}
       {boats.filter((boat) => boat.berth).map((boat) => {
         const commodity = boat.commodity!
         const position = findBoardPosition(annotationDocument, `${boat.status === 'port' ? 'port' : 'shipyard'}-${boat.berth!.toLowerCase()}-punt-slot`)
         return <span className={`berthed-share ${commodityPresentation(commodity).className}`} key={boat.id} style={positionStyle(annotationDocument.board, position)}>{commodityPresentation(commodity).label}</span>
+      })}
+      {placementOptions.map((option) => {
+        const name = boardHotspotName(option.location)
+        if (!name) return null
+        const item = findBoardPosition(annotationDocument, name)
+        const selected = placementChoice !== null && samePlacement(placementChoice, option.location)
+        return <button key={name} type="button" className={`game-hotspot${selected ? ' is-selected' : ''}`} style={hotspotStyle(annotationDocument.board, item)} aria-label={`放置同伙：${option.location.area}，费用 ${option.cost}`} onClick={() => onSelectPlacement?.(option.location)}>{option.cost}</button>
       })}
     </figure>
   </section>

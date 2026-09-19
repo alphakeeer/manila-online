@@ -77,6 +77,60 @@ describe('authoritative first auction', () => {
     expect((await pool.query<{ status: string }>('SELECT status FROM rooms WHERE code = $1', [code])).rows[0]?.status).toBe('isolated')
   })
 
+  it('rejects malformed actions, extra fields, missing sessions and non-members', async () => {
+    const anonymous = await app.inject({ method: 'GET', url: '/api/rooms/AAAA2222/snapshot' })
+    expect(anonymous.statusCode).toBe(401)
+    expect(anonymous.json()).toEqual({ code: 'AUTH_REQUIRED' })
+
+    const host = await session('127.0.0.1')
+    const created = await write(host, '/api/rooms', { commandId: 'create', nickname: 'Host' })
+    const code = created.json().room.code as string
+
+    const nonMember = await session('127.0.0.2')
+    const outsider = await app.inject({ method: 'GET', url: `/api/rooms/${code}/snapshot`, headers: { cookie: nonMember } })
+    expect(outsider.statusCode).toBe(404)
+    expect(outsider.json()).toEqual({ code: 'NOT_MEMBER' })
+
+    const extraField = await write(host, `/api/rooms/${code}/commands`, {
+      protocolVersion: 1,
+      commandId: 'extra',
+      expectedRevision: 1,
+      action: { type: 'passAuction', playerId: 'forged' },
+    })
+    expect(extraField.statusCode).toBe(400)
+    expect(extraField.json()).toEqual({ code: 'VALIDATION_ERROR' })
+
+    const malformedLane = await write(host, `/api/rooms/${code}/commands`, {
+      protocolVersion: 1,
+      commandId: 'lane',
+      expectedRevision: 1,
+      action: { type: 'launchBoats', assignments: [{ boatId: 'boat-1', commodity: 'nutmeg', lane: 99, startPosition: 3 }] },
+    })
+    expect(malformedLane.statusCode).toBe(400)
+    expect(malformedLane.json()).toEqual({ code: 'VALIDATION_ERROR' })
+
+    const fractionalPosition = await write(host, `/api/rooms/${code}/commands`, {
+      protocolVersion: 1,
+      commandId: 'fractional',
+      expectedRevision: 1,
+      action: { type: 'launchBoats', assignments: [{ boatId: 'boat-1', commodity: 'nutmeg', lane: 0, startPosition: 1.5 }] },
+    })
+    expect(fractionalPosition.statusCode).toBe(400)
+    expect(fractionalPosition.json()).toEqual({ code: 'VALIDATION_ERROR' })
+
+    const missingRevision = await write(host, `/api/rooms/${code}/commands`, {
+      protocolVersion: 1,
+      commandId: 'missing-revision',
+      action: { type: 'passAuction' },
+    })
+    expect(missingRevision.statusCode).toBe(400)
+    expect(missingRevision.json()).toEqual({ code: 'VALIDATION_ERROR' })
+
+    const badToken = await app.inject({ method: 'POST', url: '/api/session', headers: { origin }, payload: { token: 'AAAAAAAA' } })
+    expect(badToken.statusCode).toBe(401)
+    expect(badToken.json()).toEqual({ code: 'INVALID_ACCESS_TOKEN' })
+  })
+
   it('rejects unprepared starts, stale concurrent commands, and unavailable actions without state mutation', async () => {
     const host = await session('127.0.0.1')
     const created = await write(host, '/api/rooms', { commandId: 'create', nickname: 'Host' })

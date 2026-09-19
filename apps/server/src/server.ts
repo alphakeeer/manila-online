@@ -26,7 +26,8 @@ import {
 } from './auth/repository.js'
 import type { ServerConfig } from './config.js'
 import { migrationsAreCurrent } from './persistence/migrations.js'
-import { LobbyService, type CommandResult, type LobbyErrorCode } from './lobby/service.js'
+import { LobbyService, closeInactiveLobbies, type CommandResult, type LobbyErrorCode } from './lobby/service.js'
+import { startRevocationListener } from './realtime/revocationListener.js'
 import { GameService, type GameCommandResult, type GameErrorCode } from './game/service.js'
 import { RoomHub } from './realtime/roomHub.js'
 
@@ -34,6 +35,16 @@ export interface ServerDependencies {
   pool: Pool
   migrationsDir?: string
   clock?: Clock
+  /** Enables the PostgreSQL revocation listener. Defaults to off in the test environment. */
+  revocationListener?: boolean
+  /** Periodic inactive-lobby sweep interval. Defaults to 60 seconds in non-test environments. */
+  maintenanceIntervalMs?: number
+  /** Test-only deterministic game seed source; production keeps the cryptographic default. */
+  randomSeed?: () => number
+  /** Test-only deterministic starter picker; production keeps the cryptographic default. */
+  pickIndex?: (count: number) => number
+  /** Test-only override for fixed-window request limits. */
+  rateLimits?: { loginMax?: number; sessionWriteMax?: number }
 }
 
 const sessionCookieName = 'manila_session'
@@ -93,12 +104,42 @@ function gameStatus(code: GameErrorCode) {
 export function buildServer(config: ServerConfig, dependencies: ServerDependencies): FastifyInstance {
   const app = Fastify({ logger })
   const clock = dependencies.clock ?? Date
-  const loginLimiter = new FixedWindowRateLimiter(5, 60_000, clock)
-  const sessionWriteLimiter = new FixedWindowRateLimiter(30, 60_000, clock)
+  const loginLimiter = new FixedWindowRateLimiter(dependencies.rateLimits?.loginMax ?? config.loginRateLimitMax ?? 5, 60_000, clock)
+  const sessionWriteLimiter = new FixedWindowRateLimiter(dependencies.rateLimits?.sessionWriteMax ?? config.sessionWriteRateLimitMax ?? 30, 60_000, clock)
   const lobby = new LobbyService(dependencies.pool, config.authPepper, () => clock.now())
-  const game = new GameService(dependencies.pool, config.authPepper, () => clock.now(), (roomCode) => app.log.error({ roomCode }, 'isolated invalid game snapshot'))
+  const game = new GameService(
+    dependencies.pool,
+    config.authPepper,
+    () => clock.now(),
+    (roomCode) => app.log.error({ roomCode }, 'isolated invalid game snapshot'),
+    dependencies.randomSeed,
+    dependencies.pickIndex,
+  )
   const hub = new RoomHub(game)
   const heartbeatLimiter = new FixedWindowRateLimiter(6, 60_000, clock)
+  const lobbyIdleTimeoutMs = config.lobbyIdleTimeoutMs ?? 24 * 60 * 60 * 1000
+  const maintenanceIntervalMs = dependencies.maintenanceIntervalMs ?? 60_000
+  let stopRevocationListener: (() => Promise<void>) | null = null
+  const revocationListenerReady = (dependencies.revocationListener ?? config.environment !== 'test')
+    ? startRevocationListener(dependencies.pool, () => { void hub.revalidate() })
+        .then((stop) => { stopRevocationListener = stop })
+        .catch(() => { app.log.error({ code: 'REVOCATION_LISTENER_UNAVAILABLE' }, 'revocation listener unavailable') })
+    : Promise.resolve()
+  app.decorate('revocationListenerReady', revocationListenerReady)
+  const maintenanceTimer = config.environment !== 'test' || dependencies.maintenanceIntervalMs !== undefined
+    ? setInterval(() => {
+        void closeInactiveLobbies(dependencies.pool, lobbyIdleTimeoutMs, clock.now())
+          .then((codes) => Promise.all(codes.map((code) => hub.publish(code))))
+          .catch(() => app.log.error({ code: 'LOBBY_SWEEP_FAILED' }, 'inactive lobby sweep failed'))
+      }, maintenanceIntervalMs)
+    : null
+  maintenanceTimer?.unref?.()
+  app.addHook('onClose', async () => {
+    if (maintenanceTimer) clearInterval(maintenanceTimer)
+    await revocationListenerReady.catch(() => undefined)
+    if (stopRevocationListener) await stopRevocationListener()
+    await dependencies.pool.end()
+  })
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'strict' as const,
@@ -108,9 +149,6 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
 
   app.register(cookie)
   app.register(websocket, { options: { maxPayload: 8 * 1024 } })
-  app.addHook('onClose', async () => {
-    await dependencies.pool.end()
-  })
 
   async function authenticate(request: { cookies: Record<string, string | undefined> }, reply: Parameters<typeof sendError>[0]) {
     const credential = request.cookies[sessionCookieName]
@@ -225,6 +263,7 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     if (!session) return reply
     try {
       await revokeSession(dependencies.pool, session.id)
+      void hub.revalidate()
       reply.clearCookie(sessionCookieName, cookieOptions)
       return reply.code(204).send()
     } catch {

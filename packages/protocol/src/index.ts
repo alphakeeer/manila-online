@@ -115,7 +115,7 @@ export const LobbySnapshotSchema = z
       .object({
         code: z.string(),
         revision: RevisionSchema,
-        status: z.enum(['lobby', 'playing', 'finished']),
+        status: z.enum(['lobby', 'playing', 'finished', 'closed']),
         pirateVariant: PirateVariantSchema,
         members: z.array(RoomMemberViewSchema),
       })
@@ -185,7 +185,7 @@ const DecisionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('plunderDestination'), boatId: z.string(), destinations: z.array(z.enum(['port', 'shipyard'])) }).strict(),
 ])
 export const GameRoomSnapshotSchema = z.object({
-  room: z.object({ code: z.string(), revision: RevisionSchema, pirateVariant: PirateVariantSchema, status: z.enum(['playing', 'finished']) }).strict(),
+  room: z.object({ code: z.string(), revision: RevisionSchema, pirateVariant: PirateVariantSchema, status: z.enum(['playing', 'finished', 'closed']), readOnly: z.boolean() }).strict(),
   public: z.object({
     voyage: z.number().int().positive(),
       phase: z.object({ kind: z.string(), currentSeat: z.number().int().min(1).max(5).nullable(), dice: z.record(CommoditySchema, z.number().int()).nullable() }).strict(),
@@ -202,10 +202,47 @@ export const GameRoomSnapshotSchema = z.object({
   decision: DecisionSchema.nullable(),
 }).strict()
 
+export const SettlementIncomeSchema = z.object({
+  category: z.enum(['cargo', 'plunder', 'portBerth', 'shipyardBerth', 'forcedMortgage']),
+  amount: z.number(),
+  playerId: z.string().min(1).optional(),
+  boatId: z.string().min(1).optional(),
+  commodity: CommoditySchema.optional(),
+  berth: z.enum(['A', 'B', 'C']).optional(),
+  paidBy: z.enum(['treasury', 'insurance']).optional(),
+}).strict()
+
+export const SettlementPaymentSchema = z.object({
+  category: z.literal('insurance'),
+  amount: z.number(),
+  berth: z.enum(['A', 'B', 'C']),
+  receiverId: z.string().min(1).nullable(),
+  coveredByTreasury: z.number(),
+}).strict()
+
+export const SettlementPublicSchema = z.object({
+  voyage: z.number().int().positive(),
+  boats: z.array(z.object({ id: z.string(), commodity: CommoditySchema.nullable(), status: BoatStatusSchema, berth: z.enum(['A', 'B', 'C']).nullable(), plundered: z.boolean() }).strict()),
+  market: z.array(z.object({ commodity: CommoditySchema, from: z.number(), to: z.number() }).strict()),
+}).strict()
+
+export const SettlementEntrySchema = z.object({
+  voyage: z.number().int().positive(),
+  public: SettlementPublicSchema,
+  self: z.object({
+    incomes: z.array(SettlementIncomeSchema),
+    payments: z.array(SettlementPaymentSchema),
+    pesosDelta: z.number(),
+  }).strict().nullable(),
+}).strict()
+
 export const SettlementHistorySchema = z.object({
-  settlements: z.array(z.object({ voyage: z.number().int().positive(), public: z.unknown(), self: z.object({ pesosDelta: z.number().int() }).nullable() }).strict()),
+  settlements: z.array(SettlementEntrySchema),
 }).strict()
 
 export type GameRoomSnapshot = z.infer<typeof GameRoomSnapshotSchema>
 export type GameCommandRequest = z.infer<typeof GameCommandRequestSchema>
 export type SettlementHistory = z.infer<typeof SettlementHistorySchema>
+export type SettlementEntry = z.infer<typeof SettlementEntrySchema>
+export type SettlementIncomeView = z.infer<typeof SettlementIncomeSchema>
+export type SettlementPaymentView = z.infer<typeof SettlementPaymentSchema>

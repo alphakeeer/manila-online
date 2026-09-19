@@ -75,9 +75,9 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T03：done / `7d886b3` / 窄回归 15 项、全套 51 项、生产构建和 3/4/5 人各 20 局固定种子模拟通过；重复抵押不再重复放款，竞拍承诺期间的赎回不会造成负现金。
 - T04：done / `ab0f398`、`a441a03`、`7d81f58` / Docker Compose PostgreSQL 已启动，`npm run db:migrate` 与 `npm run test:integration`（真实 `manila_test`）通过；仍不包含生产部署。
 - T05：done / `57e8c13`、`7d81f58` / 真实 PostgreSQL 会话、Token 规范化、撤销和限流 integration 通过；Chromium 两独立 Cookie 上下文的登录、刷新和登出 E2E 通过。
-- T06：done / `c05521a`、`a441a03` / 真实 PostgreSQL integration 覆盖创建/加入/准备/规则变体/离房、并发末席、revision 和 commandId 重放；三人完整竞拍流程由 T08 WebSocket integration 覆盖。
+- T06：done / `c05521a`、`a441a03` / 真实 PostgreSQL integration 覆盖创建/加入/准备/规则变体/离房、并发末席、revision 和 commandId 重放；三人完整竞拍流程由 T08 Chromium E2E 覆盖。
 - T07：done / `b1a568c` / `npm run db:migrate`、`npm test`、`npm run build`、`npm run test:integration` 通过；3 人真实数据库开局、私有投影、竞拍 ACK 重放和冲突 commandId 已覆盖。首位出价者由服务端密码学随机选取。
-- T08：done / `19fd395` / `npm test`、`npm run build`、`npm run test:integration` 通过；真实 WebSocket 验证订阅初始视图、presence、接收者私有隔离和提交后相同 revision 广播，生产入口不再依赖 `@manila/game`。
+- T08：done / `19fd395`、`3bc93d0` / `npm test`、`npm run build`、`npm run test:integration` 通过；真实 WebSocket 验证订阅初始视图、presence、接收者私有隔离和提交后相同 revision 广播；三独立 Chromium 上下文完成创建、准备、随机首位竞拍与同步。生产入口不再依赖 `@manila/game`。
 - T09：done / `656b0fa` / `npm test`、`npm run build`、`npm run test:integration` 通过；客户端快照门禁、断线只读、20 秒心跳、指数重连和 sessionStorage commandId 重试已实现，未知协议版本存档会标记 isolated。进程级故障注入与完整断网 Chromium 情景留待 T18 扩展。
 - T10–T19：TODO。
 - 当前可启动：T10（T04–T09 已完成）。

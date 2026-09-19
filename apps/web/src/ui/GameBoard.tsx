@@ -3,7 +3,14 @@ import { annotationDocument, findBoardPosition, positionStyle } from './annotati
 import { commodityPresentation } from './commodityPresentation'
 import { MarketPriceTrack } from './MarketPriceTrack'
 
-const asset = (file: string) => new URL(`../../../../manila_assets/${file}`, import.meta.url).href
+/** Keep production imports explicit: Vite must not glob every archival source image. */
+const assets = {
+  board: new URL('../../../../manila_assets/game_board.jpg', import.meta.url).href,
+  nutmeg: new URL('../../../../manila_assets/nutmeg_shares.png', import.meta.url).href,
+  silk: new URL('../../../../manila_assets/silk_shares.png', import.meta.url).href,
+  jade: new URL('../../../../manila_assets/jade_shares.png', import.meta.url).href,
+  ginseng: new URL('../../../../manila_assets/ginseng_shares.png', import.meta.url).href,
+} as const
 const laneName = ['left', 'center', 'right'] as const
 
 /** The board only receives the public protocol projection. */
@@ -12,13 +19,13 @@ export function GameBoard({ snapshot }: { snapshot: GameRoomSnapshot }) {
   return <section className="board-panel" aria-label="游戏版图">
     <div className="panel-heading"><div><span>航线实况</span><h2>驶向马尼拉</h2></div><p>第 {snapshot.public.voyage} 航程</p></div>
     <figure className="board-stage">
-      <img className="board-stage__image" src={asset('game_board.jpg')} alt="马尼拉游戏版图" />
+      <img className="board-stage__image" src={assets.board} alt="马尼拉游戏版图" />
       <MarketPriceTrack market={snapshot.public.market} />
       {boats.filter((boat) => boat.status === 'sailing').map((boat) => {
         const commodity = boat.commodity!
         const route = findBoardPosition(annotationDocument, `${laneName[boat.lane!]!}-route-space-${boat.position}`)
         return <article key={boat.id} className="boat-share" style={positionStyle(annotationDocument.board, route)} aria-label={`${commodityPresentation(commodity).label}舢板`}>
-          <img src={asset(`${commodity}_shares.png`)} alt="" />
+          <img src={assets[commodity]} alt="" />
           <strong className={commodityPresentation(commodity).className}>{commodityPresentation(commodity).label}</strong>
         </article>
       })}

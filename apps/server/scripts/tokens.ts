@@ -1,10 +1,10 @@
 import { createPool } from '../src/persistence/database.js'
 import { loadConfig } from '../src/config.js'
-import { createAccessToken, revokeAccessToken } from '../src/auth/repository.js'
+import { createAccessToken, listAccessTokens, revokeAccessToken } from '../src/auth/repository.js'
 import { digestAccessToken, generateAccessToken, generateTokenId } from '../src/auth/credentials.js'
 
 function usage(): never {
-  throw new Error('用法：npm run tokens -- create [label] | npm run tokens -- revoke <token-id>')
+  throw new Error('用法：npm run tokens -- create [label] | list | revoke <token-id>')
 }
 
 const [command, ...arguments_] = process.argv.slice(2)
@@ -31,6 +31,10 @@ try {
     const revoked = await revokeAccessToken(pool, tokenId)
     if (!revoked) throw new Error('未找到 Token ID')
     console.log(`已撤销 Token ID: ${tokenId}`)
+  } else if (command === 'list' && arguments_.length === 0) {
+    for (const token of await listAccessTokens(pool)) {
+      console.log(`${token.id}\t${token.revoked_at ? 'revoked' : 'active'}\t${token.label ?? '-'}\t${token.created_at.toISOString()}`)
+    }
   } else {
     usage()
   }

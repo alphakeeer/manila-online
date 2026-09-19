@@ -6,6 +6,12 @@ export interface AccessTokenRow {
   id: string
   token_digest: string
   revoked_at: Date | null
+  label?: string | null
+}
+
+export async function listAccessTokens(database: Database) {
+  const result = await database.query<AccessTokenRow & { created_at: Date }>('SELECT id, label, revoked_at, created_at FROM access_tokens ORDER BY created_at DESC')
+  return result.rows
 }
 
 export interface SessionRow {

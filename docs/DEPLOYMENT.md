@@ -4,6 +4,25 @@
 
 > 真实域名、DNS、证书和秘密必须由项目所有者提供。仓库不会自动购买资源、上传秘密或声称已经上线；首次真实上线属于 [T20](tasks/T20-public-launch.md)。
 
+## 0. 一条命令部署（推荐）
+
+满足下文“前置条件”后，在服务器仓库目录执行：
+
+```bash
+scripts/deploy.sh --domain manila.example.com
+```
+
+脚本按顺序完成：检查 Docker/Compose → 生成 `.env.production`（随机数据库密码与 `AUTH_PEPPER`，权限 600，已被 Git 忽略）→ 构建并启动 Compose → 等待容器内 `/health/ready` → 等待 `https://域名/health/ready`（首启签发证书约需 1 分钟）→ 首次部署打印 1 个门禁 Token → 打印后续命令。可重复执行，已有秘密不会被覆盖。
+
+| 场景 | 命令 |
+| --- | --- |
+| 拉取新版本后升级（先自动备份数据库） | `git pull && scripts/deploy.sh --update` |
+| 再发几个 Token | `scripts/deploy.sh --tokens 3` |
+| 换域名 | `scripts/deploy.sh --domain new.example.com` |
+| 在本机演练生产形态（`https://localhost`，Caddy 内部 CA） | `scripts/deploy.sh --local` |
+
+务必把 `.env.production`（尤其 `AUTH_PEPPER`）和备份文件另存到服务器之外。下文第 3 节保留手工步骤，供排障或需要逐步控制时参考；手工部署时也可沿用 `.env`，脚本可通过 `MANILA_ENV_FILE=.env` 读取它。
+
 ## 1. 生产形态
 
 ```
@@ -103,6 +122,8 @@ npm run verify:deployment
 脚本会检查 HTTPS、健康检查、同源 Web/静态资源、无效 Token、Cookie 安全属性、鉴权接口、登出和匿名 WSS 拒绝。对使用自签证书的本地演练可临时加 `ALLOW_INSECURE=1` 与 `NODE_TLS_REJECT_UNAUTHORIZED=0`，正式环境不要使用。
 
 ## 4. 日常运维
+
+> 用 `scripts/deploy.sh` 部署时秘密在 `.env.production`：下列 `docker compose` 命令需加 `--env-file .env.production`（备份/恢复脚本会自动识别）。
 
 ```bash
 # 查看状态与日志（日志已省略凭证与私有 payload）

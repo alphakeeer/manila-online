@@ -96,6 +96,14 @@ npm run bots -- --players 4 --phones 1 --delay 1200 --variant strengthened
 
 单机公网部署使用 Caddy 自动 HTTPS、同源 app 容器和独立 PostgreSQL 卷；数据库不映射主机端口。完整步骤、升级/回滚、备份恢复和 pepper 保管见 [部署手册](docs/DEPLOYMENT.md)。
 
+一条命令（生成秘密、构建、启动、健康检查、打印首个 Token；可重复执行）：
+
+```bash
+scripts/deploy.sh --domain 你的域名
+```
+
+升级：`git pull && scripts/deploy.sh --update`（先自动备份）；本机演练：`scripts/deploy.sh --local`。手工步骤仍可用：
+
 ```bash
 cp .env.production.example .env   # 填写真实域名、HTTPS Origin、数据库密码和 AUTH_PEPPER
 docker compose -f compose.prod.yaml up -d --build

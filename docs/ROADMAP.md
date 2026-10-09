@@ -59,6 +59,7 @@ Terra 负责跨层一致性、规则缺陷、安全、事务和故障；Luna 负
 | [T23 中途离开由机器人托管、重进接回座位](tasks/T23-seat-autopilot.md) | 4 补充 | T22 | Terra |
 | [T24 玩家快速、方便地加入](tasks/T24-quick-join.md) | 4 补充 | T23 | Luna |
 | [T25 性能优化（先测量后优化）](tasks/T25-performance.md) | 4 补充 | T24 | Terra |
+| [T26 一条命令快速部署](tasks/T26-fast-deploy.md) | 5 补充 | T19、T25 | Terra |
 
 ## 并行与交接边界
 

@@ -97,6 +97,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T23：done / `ea34cd3` / [T23](tasks/T23-seat-autopilot.md)：`npm run test:integration` 9 文件 27 测试通过（新增 `seatAutopilot.test.ts`：主动托管与接回、退出登录立即托管并按昵称接回、断线宽限后托管与重连解除、全座位托管打到终局后返回大厅；连续 5 次运行稳定）；修复首版代打事务先锁房间引发的死锁（改为先锁会话）。三视口多浏览器实测：关闭手机窗口 30.3 s 后被托管，新浏览器以原昵称接回、徽标消失，页面无错误。
 - T24：done / `ea34cd3` / [T24](tasks/T24-quick-join.md)：邀请链接自动加入（记住昵称）、未记住昵称时房间码预填、二维码渲染均经多浏览器脚本验证；`uqr` 二维码编码器独立按需分包（10.89 kB）；`npm test` 20 文件 85 测试、`npm run build`、三条 Chromium E2E（完整对局 33.9 s）通过。
 - T25：done / `559678c` / [T25](tasks/T25-performance.md)：基准（各 2–3 次取中位）：图片 1728 KB → 342 KB；模拟手机 4G 下对局资源 3.77 s → 约 1.0 s；登录页就绪 1.32 s → 1.19 s、传输 436 KB → 361 KB（本地未压缩，生产由 Caddy 压缩）；5 人在线命令 + 全员广播 p50 14.5 ms → 5.5 ms、p95 约 20 ms → 约 9.5 ms。`npm test` 20 文件 85 测试、`npm run test:integration` 9 文件 27 测试、三条 E2E（完整对局 30.3 s）通过。
+- T26：done / `923f2ce` / [T26](tasks/T26-fast-deploy.md)：本机 `scripts/deploy.sh --local` 实跑：首次构建约 16.8 分钟（容器内依赖下载），缓存后重跑约 12 s；容器就绪、`https://localhost` 就绪、自动签发首个 Token；`verify:deployment` 11/11（ALLOW_INSECURE=1）；重复执行不新增 Token、不覆盖秘密；`--update` 先生成 `backup/manila-before-update-*.dump` 再重建并恢复就绪；生产形态下会话与三人竞拍 Chromium E2E 通过（WebP 以 `image/webp` 提供，主 JS gzip 约 100 KB，HSTS 存在）。发现并修复：首跑中断后重跑不发 Token（改为“无有效 Token 即签发”）。仍未在真实公网主机执行，T20 条件不变。
 - 当前可启动：T20（Phase 5 已完成；Phase 6 需外部条件）。
 - MVP 功能范围和生产部署形态已在本地真实链路验证；真实公网发布仍以 T20 为前提。
 

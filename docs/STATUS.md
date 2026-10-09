@@ -92,6 +92,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T18：done / `908938b` / 新增 3/4/5 人 × 两种海盗规则的权威 HTTP 整局矩阵、财务/生命周期/撤销/进程重启/输入边界 integration；新增三独立 Chromium 完整对局 E2E 和 CI `verify` + `e2e` 两个作业。
 - T19：done / `626b8e9` / 多阶段 `Dockerfile`、`compose.prod.yaml`（Caddy HTTPS + app + 内部 PostgreSQL）、同源静态服务、生产配置门禁、备份/恢复脚本、`verify:deployment` 自检和 [部署手册](DEPLOYMENT.md) 已交付；本地生产形态、HTTPS/WSS E2E、重启持久化与真实备份恢复演练通过，证据见 4.2。
 - T20：blocked / 工具已就绪（Phase 6 任务与验证脚本已提交），等待真实主机、域名、DNS、TLS 和秘密授权；未执行真实公网部署，也未对外上线。
+- T21：done / `621a22f`、`bd4d8b9` / 纯前端重构见 [T21](tasks/T21-play-experience.md)：`npm test` 18 文件 71 测试、`npm run build`（JS gzip 112.60 kB，图片不变）通过；在本地 PostgreSQL + `SESSION_WRITE_RATE_LIMIT_MAX=100000 LOGIN_RATE_LIMIT_MAX=1000`（与 CI 相同）下，会话、三人竞拍、三人完整对局 3 条 Chromium E2E 通过（完整对局 29.5 s）；另以 1440×900 / iPhone 13 / 1180×820 三视口自动打完整局并人工复核截图。修正版图展示标注：港口泊位 A/C 与图面字母对调、修船厂同伙位移至右侧码头（仅标注名称，坐标未改），新增方向回归测试。未在真实手机物理设备上验收。
 - 当前可启动：T20（Phase 5 已完成；Phase 6 需外部条件）。
 - MVP 功能范围和生产部署形态已在本地真实链路验证；真实公网发布仍以 T20 为前提。
 

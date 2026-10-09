@@ -4,7 +4,9 @@
 # Usage: COMPOSE_FILE=compose.prod.yaml scripts/restore-drill.sh
 set -euo pipefail
 
-env_value() { [[ -f .env ]] && sed -n "s/^$1=//p" .env | head -1; }
+# scripts/deploy.sh keeps secrets in .env.production; older manual setups use .env.
+ENV_FILE="${MANILA_ENV_FILE:-$([[ -f .env.production ]] && echo .env.production || echo .env)}"
+env_value() { [[ -f "$ENV_FILE" ]] && sed -n "s/^$1=//p" "$ENV_FILE" | head -1; }
 COMPOSE_FILE="${COMPOSE_FILE:-compose.prod.yaml}"
 POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
 POSTGRES_USER="${POSTGRES_USER:-$(env_value POSTGRES_USER)}"
@@ -14,7 +16,8 @@ DRILL_DB="${DRILL_DB:-manila_restore_drill}"
 POSTGRES_USER="${POSTGRES_USER:?set POSTGRES_USER in the environment or .env}"
 TABLES=(access_tokens sessions rooms room_members games commands events)
 
-CONTAINER="$(docker compose -f "$COMPOSE_FILE" ps -q "$POSTGRES_SERVICE")"
+ENV_ARGS=(); [[ -f "$ENV_FILE" ]] && ENV_ARGS=(--env-file "$ENV_FILE")
+CONTAINER="$(docker compose ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} -f "$COMPOSE_FILE" ps -q "$POSTGRES_SERVICE")"
 [[ -n "$CONTAINER" ]] || { echo "postgres container is not running for ${COMPOSE_FILE}" >&2; exit 1; }
 
 TMP="$(mktemp -t manila-restore-drill-XXXXXX.dump)"

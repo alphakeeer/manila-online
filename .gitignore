@@ -6,3 +6,5 @@ coverage/
 .env
 test-results/
 playwright-report/
+.env.production
+backup/

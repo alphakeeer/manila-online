@@ -9,10 +9,11 @@ import {
   type PirateVariant,
   type SessionView,
 } from '@manila/protocol'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Dialog } from './Dialog'
 import { errorMessage } from './errorMessages'
 import { GameRoom } from './GameRoom'
+import { InviteCard, consumeInviteCode, rememberNickname, rememberedNickname } from './Invite'
 
 type Status =
   | { kind: 'loading' }
@@ -34,14 +35,16 @@ export function SessionLobby() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
   const [snapshot, setSnapshot] = useState<LobbySnapshot | null>(null)
   const [gameSnapshot, setGameSnapshot] = useState<GameRoomSnapshot | null>(null)
+  const [invite] = useState(consumeInviteCode)
   const [token, setToken] = useState('')
-  const [nickname, setNickname] = useState('')
-  const [roomCode, setRoomCode] = useState('')
+  const [nickname, setNickname] = useState(rememberedNickname)
+  const [roomCode, setRoomCode] = useState(invite ?? '')
   const [pirateVariant, setPirateVariant] = useState<PirateVariant>('standard')
   const [error, setError] = useState<ErrorCode | null>(null)
   const [pending, setPending] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const autoJoined = useRef(false)
+  const pastedToken = useRef(false)
 
   async function refreshLobby() {
     const response = await fetch('/api/lobby', { credentials: 'same-origin' })
@@ -72,15 +75,15 @@ export function SessionLobby() {
       void refreshLobby().catch((reason: unknown) => active && setError(reason instanceof Error ? reason.message as ErrorCode : 'UNKNOWN_ERROR'))
     }
     update()
-    const interval = window.setInterval(update, 3_000)
+    const interval = window.setInterval(update, 2_000)
     return () => {
       active = false
       window.clearInterval(interval)
     }
   }, [status.kind])
 
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function login(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
     setPending(true)
     setError(null)
     try {
@@ -116,12 +119,29 @@ export function SessionLobby() {
         return
       }
       setSnapshot(parsed.data)
+      if (url === '/api/rooms' || url === '/api/rooms/join') rememberNickname(nickname)
     } catch {
       setError('UNKNOWN_ERROR')
     } finally {
       setPending(false)
     }
   }
+
+  // Pasting a complete token (the usual way on phones) signs in without another tap.
+  useEffect(() => {
+    if (!pastedToken.current) return
+    pastedToken.current = false
+    if (status.kind === 'signedOut' && !pending && /^[23456789A-HJ-NP-Z]{8}$/.test(token.trim().toUpperCase())) void login()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  // Invite links (?join=CODE) join straight away when we already know the player's nickname.
+  useEffect(() => {
+    if (status.kind !== 'signedIn' || !snapshot || snapshot.room || !invite || !nickname.trim() || autoJoined.current) return
+    autoJoined.current = true
+    void send('/api/rooms/join', 'POST', { commandId: commandId(), roomCode: invite, nickname })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.kind, snapshot, invite])
 
   async function logout(confirmPlaying = false) {
     if (confirmPlaying) {
@@ -174,9 +194,10 @@ export function SessionLobby() {
           <span className="hero-seal" aria-hidden="true">M</span>
           <h1 className="hero-title">Manila<small>马尼拉</small></h1>
           <p className="hero-tagline">1821 年，走私舢板正驶向马尼拉黑市。<br />竞拍港务长、押注货物、收买海盗——和朋友一起出海。</p>
+          {invite && <p className="invite-hint">🎟️ 朋友邀请你加入房间 <strong>{invite}</strong>，输入 Token 即可上船</p>}
           <form className="token-form" onSubmit={(event) => void login(event)}>
             <label htmlFor="access-token">访问 Token</label>
-            <input id="access-token" name="token" className="token-input" value={token} onChange={(event) => setToken(event.target.value.toUpperCase())} maxLength={12} placeholder="8 位字符" autoComplete="off" autoCapitalize="characters" spellCheck={false} disabled={pending} />
+            <input id="access-token" name="token" className="token-input" value={token} onChange={(event) => setToken(event.target.value.toUpperCase())} onPaste={() => { pastedToken.current = true }} maxLength={12} placeholder="8 位字符" autoComplete="off" autoCapitalize="characters" spellCheck={false} disabled={pending} />
             <button type="submit" className="primary-action" disabled={pending}>{pending ? '正在进入…' : '进入大厅'}</button>
           </form>
           {error && <p role="alert" className="form-error">{errorMessage(error)}</p>}
@@ -186,7 +207,8 @@ export function SessionLobby() {
   }
 
   const logoutDialog = <Dialog title="确认退出游戏" onClose={() => setConfirmLogout(false)}>
-    <p>退出将撤销当前会话，正在进行的座位无法自动找回。</p>
+    <p>退出后你的座位会立刻交给机器人稳健托管，牌局不会卡住。</p>
+    <p>想回来时，重新输入 Token，在“加入朋友”里填原房间码和原昵称，就能接回座位。</p>
     <div className="dialog-actions">
       <button type="button" className="primary-action" disabled={pending} onClick={() => { setConfirmLogout(false); void performLogout() }}>确认退出</button>
       <button type="button" className="quiet-action" disabled={pending} onClick={() => setConfirmLogout(false)}>取消</button>
@@ -195,7 +217,8 @@ export function SessionLobby() {
   const room = snapshot?.room
   if (room?.status === 'playing' || room?.status === 'finished' || room?.status === 'closed') {
     return <>
-      <GameRoom roomCode={room.code} initialSnapshot={gameSnapshot} onSessionExpired={() => { setGameSnapshot(null); setSnapshot(null); setStatus({ kind: 'signedOut' }) }} onLogout={() => void logout(true)} />
+      <GameRoom roomCode={room.code} initialSnapshot={gameSnapshot} onSessionExpired={() => { setGameSnapshot(null); setSnapshot(null); setStatus({ kind: 'signedOut' }) }} onLogout={() => void logout(true)}
+        onReturnToLobby={(revision) => { setGameSnapshot(null); void send(`/api/rooms/${room.code}/members/me`, 'DELETE', { commandId: commandId(), expectedRevision: revision }) }} />
       {confirmLogout && logoutDialog}
     </>
   }
@@ -213,8 +236,9 @@ export function SessionLobby() {
           <section className="room-view" aria-label="当前房间">
             <div className="room-view__code">
               <h2>房间 {room.code}</h2>
-              <button type="button" className="mini-action" onClick={() => { void navigator.clipboard?.writeText(room.code).then(() => setCopied(true), () => undefined); window.setTimeout(() => setCopied(false), 1600) }}>{copied ? '已复制 ✓' : '复制房间码'}</button>
+
             </div>
+            <InviteCard code={room.code} />
             <p className="room-view__meta">{room.pirateVariant === 'standard' ? '标准海盗' : '加强海盗'} · {room.members.length} / 5 人 · {readyCount} 人已准备 · 版本 {room.revision}</p>
             <ul className="seat-ring">
               {seats.map((seat) => {
@@ -248,6 +272,7 @@ export function SessionLobby() {
               </form>
               <form className="entry-panel" onSubmit={(event) => { event.preventDefault(); void send('/api/rooms/join', 'POST', { commandId: commandId(), roomCode, nickname }) }}>
                 <h3>加入朋友</h3>
+                <small className="entry-panel__hint">牌局中途离开过？填原房间码和原昵称即可接回座位。</small>
                 <label className="field">房间码<input className="code-input" value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase())} maxLength={12} placeholder="8 位房间码" autoCapitalize="characters" spellCheck={false} disabled={pending} /></label>
                 <button type="submit" className="primary-action primary-action--sea" disabled={pending}>加入房间</button>
               </form>

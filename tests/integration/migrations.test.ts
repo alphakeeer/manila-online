@@ -31,6 +31,7 @@ describe('PostgreSQL migrations', () => {
         { id: '002_rooms_and_commands.sql' },
         { id: '003_games_and_events.sql' },
         { id: '004_settlement_private_payload.sql' },
+        { id: '005_seat_autopilot.sql' },
       ])
     } finally {
       await pool.end()

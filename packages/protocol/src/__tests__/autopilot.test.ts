@@ -1,6 +1,6 @@
-import { GameActionSchema, type GameRoomSnapshot } from '@manila/protocol'
+import { GameActionSchema, type GameRoomSnapshot } from '../index.js'
 import { describe, expect, test } from 'vitest'
-import { chooseAction } from '../autopilot'
+import { chooseAction } from '../autopilot.js'
 
 type Decision = NonNullable<GameRoomSnapshot['decision']>
 
@@ -11,7 +11,7 @@ function snapshotWith(decision: Decision, pesos = 20): GameRoomSnapshot {
       voyage: 1, phase: { kind: decision.kind, currentSeat: 1, dice: null }, harborMasterSeat: 1, highestBid: null,
       market: { nutmeg: 0, silk: 0, jade: 0, ginseng: 0 },
       boats: [{ id: 'boat-1', commodity: 'silk', lane: 0, position: 13, status: 'sailing', berth: null, plundered: false }],
-      accomplices: [], players: [{ seat: 1, nickname: 'P1' }], shareSupply: { nutmeg: 5, silk: 5, jade: 5, ginseng: 5 }, standings: null,
+      accomplices: [], players: [{ seat: 1, nickname: 'P1', autopilot: null }], shareSupply: { nutmeg: 5, silk: 5, jade: 5, ginseng: 5 }, standings: null,
     },
     self: { seat: 1, pesos, shares: [{ id: 'share-1', commodity: 'jade', mortgaged: false }, { id: 'share-2', commodity: 'silk', mortgaged: false }] },
     decision,
@@ -65,6 +65,18 @@ describe('random autopilot', () => {
     expect(chooseAction(snapshotWith(decisions[4]!), seeded(3), true)).toEqual({ type: 'passPlacement' })
     expect(chooseAction(snapshotWith(decisions[6]!), seeded(3), true)).toEqual({ type: 'pilotMove', moves: [] })
     expect(chooseAction(snapshotWith(decisions[7]!), seeded(3), true)).toEqual({ type: 'boardPirate', accompliceId: 'a-9', boatId: null })
+  })
+
+  test('steady style protects an absent player\'s purse', () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      expect(chooseAction(snapshotWith(decisions[0]!), seeded(seed), false, 'steady')).toEqual({ type: 'passAuction' })
+      expect(chooseAction(snapshotWith(decisions[1]!), seeded(seed), false, 'steady')).toEqual({ type: 'buyShare', commodity: null, mortgageShareIds: [] })
+      const placement = chooseAction(snapshotWith(decisions[4]!), seeded(seed), false, 'steady')
+      if (placement?.type === 'placeAccomplice') {
+        expect(placement.location.area).toBe('cargo')
+        expect(placement.stowaway).toBe(false)
+      } else expect(placement).toEqual({ type: 'passPlacement' })
+    }
   })
 
   test('does nothing without a decision', () => {

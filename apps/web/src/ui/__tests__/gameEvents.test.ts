@@ -15,7 +15,7 @@ function base(): GameRoomSnapshot {
         { id: 'boat-1', commodity: 'silk', lane: 0, position: 4, status: 'sailing', berth: null, plundered: false },
       ],
       accomplices: [{ id: 'a-1', seat: 2, location: null }],
-      players: [{ seat: 1, nickname: '阿青' }, { seat: 2, nickname: 'Bo' }, { seat: 3, nickname: 'Cy' }],
+      players: [{ seat: 1, nickname: '阿青', autopilot: null }, { seat: 2, nickname: 'Bo', autopilot: null }, { seat: 3, nickname: 'Cy', autopilot: null }],
       shareSupply: { nutmeg: 5, silk: 5, jade: 5, ginseng: 5 },
       standings: null,
     },

@@ -28,6 +28,7 @@ export function PlayerRail({ snapshot, presence }: { snapshot: GameRoomSnapshot;
             {player.seat === view.harborMasterSeat && <span className="role-badge">👑 港务长</span>}
             {current && <span className="role-badge role-badge--turn">行动中</span>}
             {bid !== null && <span className="role-badge role-badge--bid">出价 {bid}</span>}
+            {player.autopilot && <span className="role-badge role-badge--bot" title={player.autopilot === 'away' ? '离线，机器人托管中' : '机器人托管中'}>🤖 {player.autopilot === 'away' ? '离线托管' : '托管'}</span>}
           </small>
           {crew.length > 0 && <span className="crew-pips" aria-label={`同伙：${crew.filter((token) => token.location === null).length} 名待命，共 ${crew.length} 名`}>
             {crew.map((token) => <i key={token.id} className={token.location === null ? 'is-free' : 'is-placed'} />)}

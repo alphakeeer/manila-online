@@ -54,6 +54,7 @@ export const ApiErrorCodeSchema = z.enum([
   'GAME_NOT_FOUND',
   'ROOM_ISOLATED',
   'PROTOCOL_VERSION_UNSUPPORTED',
+  'SEAT_NOT_CLAIMABLE',
 ])
 
 export const ApiErrorSchema = z
@@ -136,6 +137,11 @@ export type PirateVariant = z.infer<typeof PirateVariantSchema>
 export type LobbySnapshot = z.infer<typeof LobbySnapshotSchema>
 
 const ProtocolVersionSchema = z.literal(PROTOCOL_VERSION)
+
+/** Who drives a seat: null = the player; 'away' = server bot while they are gone; 'manual' = bot by request. */
+export const SeatAutopilotSchema = z.enum(['away', 'manual'])
+export type SeatAutopilot = z.infer<typeof SeatAutopilotSchema>
+export const SetAutopilotRequestSchema = z.object({ enabled: z.boolean() }).strict()
 export const StartGameRequestSchema = z.object({
   protocolVersion: ProtocolVersionSchema,
   commandId: CommandIdSchema,
@@ -194,7 +200,7 @@ export const GameRoomSnapshotSchema = z.object({
     market: z.record(CommoditySchema, z.number().int()),
       boats: z.array(z.object({ id: z.string(), commodity: CommoditySchema.nullable(), lane: z.number().int().min(0).max(2).nullable(), position: z.number().int().nullable(), status: BoatStatusSchema, berth: z.enum(['A', 'B', 'C']).nullable(), plundered: z.boolean() }).strict()),
       accomplices: z.array(z.object({ id: z.string(), seat: z.number().int().min(1).max(5), location: z.object({ area: z.string(), boatId: z.string().optional(), slot: z.number().int().optional(), berth: z.enum(['A', 'B', 'C']).optional() }).strict().nullable() }).strict()),
-    players: z.array(z.object({ seat: z.number().int().min(1).max(5), nickname: z.string() }).strict()),
+    players: z.array(z.object({ seat: z.number().int().min(1).max(5), nickname: z.string(), autopilot: SeatAutopilotSchema.nullable() }).strict()),
     shareSupply: z.record(CommoditySchema, z.number().int().nonnegative()),
     standings: z.array(z.object({ seat: z.number().int().min(1).max(5), nickname: z.string(), wealth: z.number().int(), winner: z.boolean() }).strict()).nullable(),
   }).strict(),
@@ -246,3 +252,5 @@ export type SettlementHistory = z.infer<typeof SettlementHistorySchema>
 export type SettlementEntry = z.infer<typeof SettlementEntrySchema>
 export type SettlementIncomeView = z.infer<typeof SettlementIncomeSchema>
 export type SettlementPaymentView = z.infer<typeof SettlementPaymentSchema>
+
+export { chooseAction, type Action as AutopilotAction, type AutopilotStyle } from './autopilot.js'

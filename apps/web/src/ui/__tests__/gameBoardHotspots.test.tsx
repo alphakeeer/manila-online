@@ -17,7 +17,7 @@ function snapshotWithPlacement(): GameRoomSnapshot {
       market: { nutmeg: 0, silk: 0, jade: 0, ginseng: 0 },
       boats: [{ id: 'boat-1', commodity: 'nutmeg', lane: 0, position: 4, status: 'sailing', berth: null, plundered: false }],
       accomplices: [{ id: 'accomplice-1', seat: 1, location: { area: 'smallPilot' } }],
-      players: [{ seat: 1, nickname: 'P1' }],
+      players: [{ seat: 1, nickname: 'P1', autopilot: null }],
       shareSupply: { nutmeg: 5, silk: 5, jade: 5, ginseng: 5 },
       standings: null,
     },

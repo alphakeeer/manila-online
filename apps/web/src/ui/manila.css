@@ -84,6 +84,13 @@
 .hero-title { margin: 6px 0 0; font: 700 clamp(38px, 9vw, 52px)/1 var(--serif); letter-spacing: .08em; color: #3a2414; }
 .hero-title small { display: block; margin-top: 6px; color: var(--cinnabar); font-size: .36em; letter-spacing: .6em; }
 .hero-tagline { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.75; }
+.invite-hint { margin: 0; padding: 10px 14px; border-radius: 12px; color: #3a2414; background: rgb(217 178 94 / 22%); font-size: 14px; animation: pop-in 400ms var(--ease-spring) both; }
+.invite-card { display: grid; gap: 10px; }
+.invite-card__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.invite-card__qr { display: grid; justify-items: center; gap: 6px; padding: 12px; border-radius: 16px; background: #fffaf0; animation: pop-in 320ms var(--ease-spring) both; }
+.invite-card__qr span[role="img"] { display: block; width: min(220px, 70vw); line-height: 0; }
+.invite-card__qr svg { width: 100%; height: auto; }
+.invite-card__qr small, .entry-panel__hint { color: var(--ink-soft); font-size: 12px; }
 .token-form { width: 100%; display: grid; gap: 8px; text-align: left; }
 .token-form label, .field { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
 .token-input, .code-input, .field input, .variant-select select {
@@ -174,6 +181,14 @@
 .player-card__identity small { display: flex; flex-wrap: wrap; gap: 4px; min-height: 0; }
 .role-badge { padding: 1px 6px; border-radius: 6px; color: #2b1d10; background: var(--brass); font-size: 10px; font-weight: 800; }
 .role-badge--turn { color: #fff; background: var(--seat); }
+.role-badge--bot { color: #fff; background: #5b6f8a; }
+.autopilot-banner { width: min(1520px, 100%); margin: 8px auto 0; padding: 10px 12px 10px 16px; display: flex; align-items: center; gap: 12px; border: 1px solid #8fa6c8; border-radius: 16px; color: #1f2a3a; background: linear-gradient(90deg, #e3ecfa, #f4f0e4); box-shadow: 0 10px 24px rgb(0 0 0 / 25%); animation: rise-in 360ms var(--ease-out) both; }
+.autopilot-banner__bot { font-size: 26px; animation: bob 2s ease-in-out infinite; }
+.autopilot-banner p { flex: 1; margin: 0; display: grid; gap: 2px; }
+.autopilot-banner small { color: #4a5568; }
+.autopilot-banner .primary-action { width: auto; margin: 0; min-height: 42px; white-space: nowrap; }
+.standings__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.standings__actions .primary-action, .standings__actions .quiet-action { margin-top: 10px; }
 .role-badge--bid { color: #fff; background: var(--cinnabar); animation: pop-in 360ms var(--ease-spring); }
 .crew-pips { display: flex; gap: 3px; }
 .crew-pips i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--seat); }
@@ -515,7 +530,7 @@
 .go-table summary { color: var(--ink-soft); cursor: pointer; }
 .go-table table { width: 100%; margin-top: 6px; border-collapse: collapse; text-align: center; }
 .go-table th, .go-table td { padding: 3px; border-bottom: 1px solid rgb(114 90 64 / 15%); }
-.gameover__actions { display: flex; justify-content: center; }
+.gameover__actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .gameover__actions .primary-action { width: min(320px, 100%); }
 .standings:not(.is-expanded) { position: fixed; z-index: 65; left: 50%; bottom: 16px; width: min(420px, calc(100vw - 24px)); padding: 14px 18px; border: 1px solid var(--paper-edge); border-radius: 20px; color: var(--ink); background: linear-gradient(180deg, var(--paper-light), var(--paper)); box-shadow: 0 24px 60px rgb(0 0 0 / 50%); transform: translateX(-50%); animation: rise-in 400ms var(--ease-out) both; }
 .standings:not(.is-expanded) h2 { font-size: 16px; }

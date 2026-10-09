@@ -148,7 +148,7 @@ function Podium({ standings, selfSeat }: { standings: Standing[]; selfSeat: numb
   </>
 }
 
-export function GameOverScreen({ snapshot, history }: { snapshot: GameRoomSnapshot; history: SettlementHistory }) {
+export function GameOverScreen({ snapshot, history, onReturnToLobby }: { snapshot: GameRoomSnapshot; history: SettlementHistory; onReturnToLobby?: () => void }) {
   const standings = snapshot.public.standings ?? []
   const selfSeat = snapshot.self.seat
   const [expanded, setExpanded] = useState(true)
@@ -182,7 +182,10 @@ export function GameOverScreen({ snapshot, history }: { snapshot: GameRoomSnapsh
   if (!expanded) return <section className="standings" aria-label="最终排名">
     <h2>最终排名</h2>
     <p className="standings__mini">🏆 {winner?.nickname} · {winner?.wealth} 比索{selfRank > 0 ? ` · 你第 ${selfRank} 名` : ''}</p>
-    <button type="button" className="quiet-action" onClick={() => setExpanded(true)}>展开结算</button>
+    <div className="standings__actions">
+      <button type="button" className="quiet-action" onClick={() => setExpanded(true)}>展开结算</button>
+      {onReturnToLobby && <button type="button" className="primary-action" onClick={onReturnToLobby}>返回大厅</button>}
+    </div>
   </section>
 
   return <div className="gameover" role="dialog" aria-modal="false" aria-label="终局结算">
@@ -209,6 +212,7 @@ export function GameOverScreen({ snapshot, history }: { snapshot: GameRoomSnapsh
         <ChartCard title="货物行情走势" note="0–30"><MarketLines series={stats.series} voyages={stats.voyages} /></ChartCard>
       </div>
       <div className="gameover__actions">
+        {onReturnToLobby && <button type="button" className="primary-action" onClick={onReturnToLobby}>返回大厅 · 再开一局</button>}
         <button type="button" className="primary-action primary-action--gold" onClick={() => setExpanded(false)}>查看棋盘</button>
       </div>
     </div>

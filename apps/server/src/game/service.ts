@@ -1,6 +1,6 @@
-import { createHmac, randomBytes, randomInt } from 'node:crypto'
+import { createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { createGame, getDecision, getStandings, transition, validateState, type GameAction, type GameEvent, type GameState, type SettlementIncome, type SettlementPayment } from '@manila/game'
-import { GameRoomSnapshotSchema, SettlementHistorySchema, PROTOCOL_VERSION, type GameCommandRequest, type GameRoomSnapshot, type PirateVariant, type SettlementHistory } from '@manila/protocol'
+import { chooseAction, GameRoomSnapshotSchema, SettlementHistorySchema, PROTOCOL_VERSION, type GameCommandRequest, type GameRoomSnapshot, type PirateVariant, type SeatAutopilot, type SettlementHistory } from '@manila/protocol'
 import type { Pool, PoolClient } from 'pg'
 import { withTransaction } from '../persistence/database.js'
 
@@ -8,11 +8,14 @@ const RULES_VERSION = 1
 
 type RoomRow = { id: string; code: string; status: 'lobby' | 'playing' | 'finished' | 'isolated' | 'closed'; pirate_variant: PirateVariant; revision: number }
 type SessionRow = { id: string; active_room_id: string | null; expires_at: Date; revoked_at: Date | null; token_revoked_at: Date | null }
-type MemberRow = { session_id: string; player_id: string; nickname: string; seat: number; is_ready: boolean }
+type MemberRow = { session_id: string; player_id: string; nickname: string; seat: number; is_ready: boolean; autopilot: SeatAutopilot | null }
 type GameRow = { snapshot: GameState; seed: string; state_version: number; rules_version: number; protocol_version: number }
 type StoredCommand = { request_digest: string; result: GameCommandResult }
 export type GameErrorCode = 'AUTH_REQUIRED' | 'TOKEN_REVOKED' | 'NOT_MEMBER' | 'NOT_HOST' | 'ROOM_NOT_FOUND' | 'ROOM_CLOSED' | 'ROOM_ISOLATED' | 'START_NOT_READY' | 'GAME_NOT_FOUND' | 'REVISION_CONFLICT' | 'COMMAND_ID_REUSED' | 'RULE_REJECTED' | 'ACTION_NOT_AVAILABLE'
 export type GameCommandResult = { kind: 'accepted'; snapshot: GameRoomSnapshot } | { kind: 'rejected'; code: GameErrorCode }
+/** Who must act next and whether the server may play for them. */
+export type AutopilotSeatState = { revision: number; actor: { seat: number; autopilot: SeatAutopilot | null; sessionValid: boolean } | null }
+export type AutopilotActResult = { kind: 'accepted' } | { kind: 'skipped' } | { kind: 'stuck' }
 export type GameHistoryResult = { kind: 'accepted'; history: SettlementHistory } | { kind: 'rejected'; code: GameErrorCode }
 
 const reject = (code: GameErrorCode): GameCommandResult => ({ kind: 'rejected', code })
@@ -32,7 +35,7 @@ async function lockRoom(client: PoolClient, roomId: string) {
 }
 
 async function members(client: PoolClient, roomId: string) {
-  const result = await client.query<MemberRow>('SELECT session_id, player_id, nickname, seat, is_ready FROM room_members WHERE room_id = $1 ORDER BY seat', [roomId])
+  const result = await client.query<MemberRow>('SELECT session_id, player_id, nickname, seat, is_ready, autopilot FROM room_members WHERE room_id = $1 ORDER BY seat', [roomId])
   return result.rows
 }
 
@@ -108,7 +111,7 @@ function project(room: RoomRow, state: GameState, roomMembers: MemberRow[], view
       market: state.market,
       boats: state.boats.map((boat) => ({ id: boat.id, commodity: boat.commodity, lane: boat.lane, position: boat.position, status: boat.status, berth: boat.berth, plundered: boat.plundered })),
       accomplices: state.accomplices.map((accomplice) => ({ id: publicAccompliceId(state, accomplice.id), seat: memberByPlayer.get(accomplice.playerId)?.seat ?? 0, location: accomplice.location })),
-      players: roomMembers.map((member) => ({ seat: member.seat, nickname: member.nickname })),
+      players: roomMembers.map((member) => ({ seat: member.seat, nickname: member.nickname, autopilot: member.autopilot })),
       shareSupply: Object.fromEntries(['nutmeg', 'silk', 'jade', 'ginseng'].map((commodity) => [commodity, state.shareSupply.filter((share) => share.commodity === commodity).length])),
       standings: state.phase.kind === 'gameOver' ? getStandings(state).map((standing) => ({ seat: memberByPlayer.get(standing.playerId)?.seat ?? 0, nickname: standing.name, wealth: standing.wealth, winner: standing.winner })) : null,
     },
@@ -179,6 +182,7 @@ export class GameService {
     private readonly onIsolate: (roomCode: string) => void = () => undefined,
     private readonly randomSeed: () => number = () => randomBytes(4).readUInt32BE(0),
     private readonly pickIndex: (count: number) => number = (count) => randomInt(count),
+    private readonly random: () => number = Math.random,
   ) {}
 
   async latest(sessionId: string, roomCode: string): Promise<GameCommandResult> {
@@ -276,19 +280,141 @@ export class GameService {
         await this.isolate(client, room)
         return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'ROOM_ISOLATED')
       }
-      const action = toGameAction(game.snapshot, viewer.player_id, input.action)
-      const transitioned = transition(structuredClone(game.snapshot), action)
-      if (!transitioned.ok) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'RULE_REJECTED')
-      if (validateState(transitioned.value.state).length > 0) throw new Error('迁移产生非法游戏状态')
-      if (transitioned.value.state.phase.kind === 'gameOver') room.status = 'finished'
-      room.revision += 1
-      await client.query('UPDATE rooms SET status = $1, revision = $2 WHERE id = $3', [room.status, room.revision, room.id])
-      await client.query('UPDATE games SET snapshot = $1, updated_at = now() WHERE room_id = $2', [JSON.stringify(transitioned.value.state), room.id])
-      for (const event of publicEvents(transitioned.value.events, roomMembers)) await client.query('INSERT INTO events (room_id, revision, event_type, public_payload, private_payload) VALUES ($1, $2, $3, $4, $5)', [room.id, room.revision, event.eventType, JSON.stringify(event.payload), event.privatePayload === undefined ? null : JSON.stringify(event.privatePayload)])
-      const accepted: GameCommandResult = { kind: 'accepted', snapshot: project(room, transitioned.value.state, roomMembers, viewer) }
+      const next = await this.apply(client, room, game.snapshot, roomMembers, viewer, input.action)
+      if (!next) return this.recordReject(client, room, sessionId, input.commandId, requestDigest, 'RULE_REJECTED')
+      // Acting in person takes the seat back from the bot.
+      if (viewer.autopilot) await this.writeAutopilot(client, room.id, viewer, null)
+      const accepted: GameCommandResult = { kind: 'accepted', snapshot: project(room, next, roomMembers, viewer) }
       await saveCommand(client, room.id, sessionId, input.commandId, requestDigest, accepted, room.revision)
       return accepted
     })
+  }
+
+  /** Lets a member hand their seat to the steady bot ('manual') or take it back. Not a game rule action. */
+  async setAutopilot(sessionId: string, roomCode: string, enabled: boolean): Promise<GameCommandResult> {
+    return withTransaction<GameCommandResult>(this.pool, async (client) => {
+      const session = await lockSession(client, sessionId)
+      const authError = sessionError(session, this.now())
+      if (authError || !session?.active_room_id) return reject(authError ?? 'NOT_MEMBER')
+      const room = await lockRoom(client, session.active_room_id)
+      if (!room || room.code !== roomCode) return reject('ROOM_NOT_FOUND')
+      if (room.status !== 'playing') return reject('ROOM_CLOSED')
+      const roomMembers = await members(client, room.id)
+      const viewer = roomMembers.find((member) => member.session_id === sessionId)
+      if (!viewer) return reject('NOT_MEMBER')
+      const game = await client.query<GameRow>('SELECT snapshot, seed, state_version, rules_version, protocol_version FROM games WHERE room_id = $1', [room.id])
+      if (!game.rows[0]) return reject('GAME_NOT_FOUND')
+      await this.writeAutopilot(client, room.id, viewer, enabled ? 'manual' : null)
+      return { kind: 'accepted', snapshot: project(room, game.rows[0].snapshot, roomMembers, viewer) }
+    })
+  }
+
+  /** Called when a member reconnects: an automatic 'away' takeover ends, a requested 'manual' one stays. */
+  async clearAway(sessionId: string, roomCode: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE room_members SET autopilot = NULL
+        FROM rooms WHERE rooms.id = room_members.room_id AND rooms.code = $1 AND rooms.status = 'playing'
+         AND room_members.session_id = $2 AND room_members.autopilot = 'away'`,
+      [roomCode, sessionId],
+    )
+    return (result.rowCount ?? 0) > 0
+  }
+
+  async playingRoomCodes(): Promise<string[]> {
+    const result = await this.pool.query<{ code: string }>("SELECT code FROM rooms WHERE status = 'playing'")
+    return result.rows.map((row) => row.code)
+  }
+
+  /** Read-only: the seat that must decide next, its takeover flag and whether its session still works. */
+  async autopilotState(roomCode: string): Promise<AutopilotSeatState | null> {
+    const room = await this.pool.query<RoomRow>('SELECT id, code, status, pirate_variant, revision FROM rooms WHERE code = $1', [roomCode])
+    const current = room.rows[0]
+    if (!current || current.status !== 'playing') return null
+    const game = await this.pool.query<{ snapshot: GameState }>('SELECT snapshot FROM games WHERE room_id = $1', [current.id])
+    const state = game.rows[0]?.snapshot
+    if (!state) return null
+    const decision = getDecision(state)
+    const playerId = decision && 'playerId' in decision ? decision.playerId : null
+    if (!playerId) return { revision: current.revision, actor: null }
+    const actor = await this.pool.query<MemberRow & { session_valid: boolean }>(
+      `SELECT room_members.seat, room_members.autopilot,
+              (sessions.revoked_at IS NULL AND sessions.expires_at > to_timestamp($3 / 1000.0) AND access_tokens.revoked_at IS NULL) AS session_valid
+         FROM room_members JOIN sessions ON sessions.id = room_members.session_id JOIN access_tokens ON access_tokens.id = sessions.token_id
+        WHERE room_members.room_id = $1 AND room_members.player_id = $2`,
+      [current.id, playerId, this.now()],
+    )
+    const row = actor.rows[0]
+    return { revision: current.revision, actor: row ? { seat: row.seat, autopilot: row.autopilot, sessionValid: row.session_valid } : null }
+  }
+
+  /**
+   * Plays exactly one decision for the seat that must act, through the same transition,
+   * validation and persistence path as a human command. The caller decides the seat is away;
+   * the revision guard makes a stale timer a no-op.
+   */
+  async autopilotAct(roomCode: string, expectedRevision: number): Promise<AutopilotActResult> {
+    // Respect the global lock order (session → room): find the acting seat's session first, unlocked,
+    // then lock it before the room and re-validate everything under the locks.
+    const actorSession = await this.actingSession(roomCode, expectedRevision)
+    if (!actorSession) return { kind: 'skipped' }
+    return withTransaction<AutopilotActResult>(this.pool, async (client) => {
+      await client.query('SELECT id FROM sessions WHERE id = $1 FOR UPDATE', [actorSession])
+      const found = await client.query<RoomRow>('SELECT id, code, status, pirate_variant, revision FROM rooms WHERE code = $1 FOR UPDATE', [roomCode])
+      const room = found.rows[0]
+      if (!room || room.status !== 'playing' || room.revision !== expectedRevision) return { kind: 'skipped' }
+      const row = await client.query<GameRow>('SELECT snapshot, seed, state_version, rules_version, protocol_version FROM games WHERE room_id = $1 FOR UPDATE', [room.id])
+      const game = row.rows[0]
+      if (!game || this.invalidGame(game)) return { kind: 'skipped' }
+      const decision = getDecision(game.snapshot)
+      const playerId = decision && 'playerId' in decision ? decision.playerId : null
+      const roomMembers = await members(client, room.id)
+      const actor = roomMembers.find((member) => member.player_id === playerId)
+      if (!actor || actor.session_id !== actorSession) return { kind: 'skipped' }
+      if (!actor.autopilot) await this.writeAutopilot(client, room.id, actor, 'away')
+      const view = project(room, game.snapshot, roomMembers, actor)
+      for (const cautious of [false, true]) {
+        const action = chooseAction(view, this.random, cautious, 'steady')
+        if (!action) break
+        const next = await this.apply(client, room, game.snapshot, roomMembers, actor, action)
+        if (!next) continue
+        const commandId = `autopilot:${randomUUID()}`
+        await saveCommand(client, room.id, actor.session_id, commandId, digest({ commandId, action }, this.pepper), { kind: 'accepted', snapshot: project(room, next, roomMembers, actor) }, room.revision)
+        return { kind: 'accepted' }
+      }
+      return { kind: 'stuck' }
+    })
+  }
+
+  /** Unlocked read of the session behind the seat that must decide at `revision` (engine-derived, like projections). */
+  private async actingSession(roomCode: string, revision: number): Promise<string | null> {
+    const found = await this.pool.query<{ id: string; snapshot: GameState }>(
+      'SELECT rooms.id, games.snapshot FROM rooms JOIN games ON games.room_id = rooms.id WHERE rooms.code = $1 AND rooms.revision = $2', [roomCode, revision])
+    const row = found.rows[0]
+    if (!row) return null
+    const decision = getDecision(row.snapshot)
+    const playerId = decision && 'playerId' in decision ? decision.playerId : null
+    if (!playerId) return null
+    const member = await this.pool.query<{ session_id: string }>('SELECT session_id FROM room_members WHERE room_id = $1 AND player_id = $2', [row.id, playerId])
+    return member.rows[0]?.session_id ?? null
+  }
+
+  /** Runs one engine transition and persists state, revision and events. Returns null on a rule rejection. */
+  private async apply(client: PoolClient, room: RoomRow, state: GameState, roomMembers: MemberRow[], actor: MemberRow, input: GameCommandRequest['action']): Promise<GameState | null> {
+    const action = toGameAction(state, actor.player_id, input)
+    const transitioned = transition(structuredClone(state), action)
+    if (!transitioned.ok) return null
+    if (validateState(transitioned.value.state).length > 0) throw new Error('迁移产生非法游戏状态')
+    if (transitioned.value.state.phase.kind === 'gameOver') room.status = 'finished'
+    room.revision += 1
+    await client.query('UPDATE rooms SET status = $1, revision = $2 WHERE id = $3', [room.status, room.revision, room.id])
+    await client.query('UPDATE games SET snapshot = $1, updated_at = now() WHERE room_id = $2', [JSON.stringify(transitioned.value.state), room.id])
+    for (const event of publicEvents(transitioned.value.events, roomMembers)) await client.query('INSERT INTO events (room_id, revision, event_type, public_payload, private_payload) VALUES ($1, $2, $3, $4, $5)', [room.id, room.revision, event.eventType, JSON.stringify(event.payload), event.privatePayload === undefined ? null : JSON.stringify(event.privatePayload)])
+    return transitioned.value.state
+  }
+
+  private async writeAutopilot(client: PoolClient, roomId: string, member: MemberRow, value: SeatAutopilot | null) {
+    await client.query('UPDATE room_members SET autopilot = $1 WHERE room_id = $2 AND session_id = $3', [value, roomId, member.session_id])
+    member.autopilot = value
   }
 
   private async recordReject(client: PoolClient, room: RoomRow, sessionId: string, commandId: string, requestDigest: string, code: GameErrorCode) {

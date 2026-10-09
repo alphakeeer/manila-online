@@ -11,7 +11,7 @@ const snapshot: GameRoomSnapshot = {
   public: {
     voyage: 2, phase: { kind: 'gameOver', currentSeat: null, dice: null }, harborMasterSeat: null, highestBid: null,
     market: { nutmeg: 30, silk: 10, jade: 5, ginseng: 0 }, boats: [], accomplices: [],
-    players: [{ seat: 1, nickname: '阿青' }, { seat: 2, nickname: 'Bo' }, { seat: 3, nickname: '小满' }, { seat: 4, nickname: 'Dee' }],
+    players: [{ seat: 1, nickname: '阿青', autopilot: null }, { seat: 2, nickname: 'Bo', autopilot: null }, { seat: 3, nickname: '小满', autopilot: null }, { seat: 4, nickname: 'Dee', autopilot: null }],
     shareSupply: { nutmeg: 1, silk: 2, jade: 3, ginseng: 4 },
     standings: [{ seat: 2, nickname: 'Bo', wealth: 120, winner: true }, { seat: 1, nickname: '阿青', wealth: 90, winner: false }, { seat: 3, nickname: '小满', wealth: 60, winner: false }, { seat: 4, nickname: 'Dee', wealth: 12, winner: false }],
   },

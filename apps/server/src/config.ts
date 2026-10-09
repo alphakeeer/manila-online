@@ -15,6 +15,9 @@ export interface ServerConfig {
   sessionWriteRateLimitMax?: number
   webDistDir?: string
   trustProxy?: boolean
+  /** Seat takeover: grace before a disconnected player's turn is played by the bot, and the bot's per-move pause. */
+  autopilotAwayMs?: number
+  autopilotThinkMs?: number
 }
 
 function required(environment: NodeJS.ProcessEnv, name: string): string {
@@ -92,5 +95,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Server
     ...(environment.SESSION_WRITE_RATE_LIMIT_MAX === undefined ? {} : { sessionWriteRateLimitMax: parsePositiveMilliseconds(environment.SESSION_WRITE_RATE_LIMIT_MAX, 30, 'SESSION_WRITE_RATE_LIMIT_MAX') }),
     ...(webDistDir === undefined ? {} : { webDistDir }),
     trustProxy,
+    autopilotAwayMs: parsePositiveMilliseconds(environment.AUTOPILOT_AWAY_MS, 30_000, 'AUTOPILOT_AWAY_MS'),
+    autopilotThinkMs: parsePositiveMilliseconds(environment.AUTOPILOT_THINK_MS, 1_500, 'AUTOPILOT_THINK_MS'),
   }
 }

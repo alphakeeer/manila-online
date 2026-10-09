@@ -34,7 +34,7 @@ function PhaseTrack({ snapshot }: { snapshot: GameRoomSnapshot }) {
   </div>
 }
 
-export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout }: { roomCode: string; initialSnapshot: GameRoomSnapshot | null; onSessionExpired: () => void; onLogout: () => void }) {
+export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout, onReturnToLobby }: { roomCode: string; initialSnapshot: GameRoomSnapshot | null; onSessionExpired: () => void; onLogout: () => void; onReturnToLobby: (revision: number) => void }) {
   const [snapshot, setSnapshot] = useState<GameRoomSnapshot | null>(initialSnapshot)
   const [error, setError] = useState<ErrorCode | null>(null)
   const [pending, setPending] = useState(false)
@@ -189,11 +189,23 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
   }, [botOn, snapshot?.room.revision, decisionKey, pending, connected, error])
 
   const closeReveal = useCallback(() => setReveal(null), [])
+  /** Server-side seat takeover: hand the seat to the steady bot or take it back. */
+  async function setSeatAutopilot(enabled: boolean) {
+    setPending(true); setError(null)
+    try {
+      const response = await fetch(`/api/rooms/${roomCode}/autopilot`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled }) })
+      const body: unknown = await response.json()
+      const parsed = GameRoomSnapshotSchema.safeParse(body)
+      if (response.ok && parsed.success) update(parsed.data)
+      else setError(apiError(body))
+    } catch { setError('UNKNOWN_ERROR') } finally { setPending(false) }
+  }
   const onCommand = (request: GameCommandRequest) => void sendCommand(request)
 
   if (!snapshot) return <main className="session-lobby"><div className="lobby-card lobby-card--center"><span className="loader-wheel" aria-hidden="true" /><p>正在同步房间…</p>{error && <p role="alert" className="form-error">{errorMessage(error)}</p>}</div></main>
   const readOnly = !connected || snapshot.room.readOnly
   const decision = snapshot.decision
+  const selfAutopilot = snapshot.public.players.find((player) => player.seat === snapshot.self.seat)?.autopilot ?? null
   const movable = decision?.kind === 'movementOrder' && !pending && !readOnly ? decision.remainingBoatIds : []
   const submitMove = (boatId: string) => {
     if (!snapshot.decision || snapshot.decision.kind !== 'movementOrder') return
@@ -206,13 +218,19 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
       <PhaseTrack snapshot={snapshot} />
       <div className="game-header__tools">
         <span className={`room-chip${connected ? ' is-online' : ''}`} title={connected ? '已连接' : '重连中'}><i aria-hidden="true" />{snapshot.room.code}</span>
-        {autopilot.enabled && <button className={`bot-toggle${botOn ? ' is-on' : ''}`} type="button" aria-pressed={botOn} onClick={() => setBotOn((on) => !on)}>{botOn ? '🤖 托管中' : '🤖 已暂停'}</button>}
+        {autopilot.enabled && <button className={`bot-toggle${botOn ? ' is-on' : ''}`} type="button" aria-pressed={botOn} onClick={() => setBotOn((on) => !on)}>{botOn ? '🎲 随机托管中' : '🎲 随机已停'}</button>}
+        {snapshot.room.status === 'playing' && !selfAutopilot && <button className="bot-toggle" type="button" disabled={pending || readOnly} title="离开一会儿？让机器人稳健地替你行动，随时可以接回" onClick={() => void setSeatAutopilot(true)}>🤖 托管</button>}
         <button className="icon-button" type="button" aria-label={muted ? '开启音效' : '关闭音效'} aria-pressed={!muted} onClick={() => { setMuted(!muted); setMutedState(!muted); if (muted) play('tick') }}>{muted ? '🔇' : '🔊'}</button>
         <button className="quiet-action quiet-action--header" type="button" onClick={onLogout}>退出</button>
       </div>
     </header>
     {snapshot.room.status === 'closed' && <p className="room-status-banner" role="status">房间已被管理员关闭，当前只能查看记录。</p>}
     {!connected && <p className="room-status-banner is-warn" role="status">连接已断开，正在重连；重连前无法提交操作。</p>}
+    {selfAutopilot && snapshot.room.status === 'playing' && <div className="autopilot-banner" role="status">
+      <span className="autopilot-banner__bot" aria-hidden="true">🤖</span>
+      <p><strong>机器人正在替你稳健行动</strong><small>{selfAutopilot === 'away' ? '你离线期间自动托管；' : ''}它会放弃竞拍、不买股份、只做低风险放置。你也可以直接操作来接回。</small></p>
+      <button type="button" className="primary-action primary-action--gold" disabled={pending || readOnly} onClick={() => void setSeatAutopilot(false)}>我回来了</button>
+    </div>}
     <PlayerRail snapshot={snapshot} presence={presence} />
     <EventToasts events={events} />
     <section className="game-workspace">
@@ -237,7 +255,7 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
       </div>
     </section>
     {reveal && !snapshot.public.standings && <SettlementReveal key={reveal.voyage} entry={reveal} onClose={closeReveal} />}
-    {snapshot.public.standings && <GameOverScreen snapshot={snapshot} history={history} />}
+    {snapshot.public.standings && <GameOverScreen snapshot={snapshot} history={history} onReturnToLobby={() => onReturnToLobby(snapshot.room.revision)} />}
     <TurnBanner turnKey={turnKey} label={yourTurnPrompt(decision?.kind ?? snapshot.public.phase.kind)} />
     {error && <p className="rule-error" role="alert"><span>{errorMessage(error)}</span><button type="button" aria-label="关闭提示" onClick={() => setError(null)}>×</button></p>}
   </main>

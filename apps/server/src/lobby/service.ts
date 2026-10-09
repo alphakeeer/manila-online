@@ -52,6 +52,7 @@ export type LobbyErrorCode =
   | 'NOT_HOST'
   | 'REVISION_CONFLICT'
   | 'COMMAND_ID_REUSED'
+  | 'SEAT_NOT_CLAIMABLE'
 
 const emptySnapshot = LobbySnapshotSchema.parse({
   room: null,
@@ -162,6 +163,14 @@ async function lockRoomById(client: PoolClient, roomId: string) {
 async function findRoomIdByCode(pool: Pool, code: string) {
   const result = await pool.query<{ id: string }>('SELECT id FROM rooms WHERE code = $1', [code])
   return result.rows[0]?.id ?? null
+}
+
+async function findSeatSessionByNickname(pool: Pool, roomId: string, nickname: string) {
+  const result = await pool.query<{ session_id: string }>(
+    'SELECT session_id FROM room_members WHERE room_id = $1 AND lower(nickname) = lower($2) ORDER BY seat LIMIT 1',
+    [roomId, nickname.trim()],
+  )
+  return result.rows[0]?.session_id ?? null
 }
 
 async function findCommand(client: PoolClient, scopeKey: string, sessionId: string, commandId: string) {
@@ -320,10 +329,13 @@ export class LobbyService {
 
   async joinRoom(sessionId: string, input: { commandId: string; roomCode: string; nickname: string }) {
     const targetRoomId = await findRoomIdByCode(this.pool, input.roomCode)
+    // A mid-game reclaim also rewrites the seat's old session; lock it before the room (session → room order).
+    const previousSeatSession = targetRoomId ? await findSeatSessionByNickname(this.pool, targetRoomId, input.nickname) : null
     return withTransaction(this.pool, async (client) => {
       const digest = requestDigest(input, this.pepper)
       const scopeKey = `session:${sessionId}`
       const session = await lockSession(client, sessionId)
+      if (previousSeatSession && previousSeatSession !== sessionId) await client.query('SELECT id FROM sessions WHERE id = $1 FOR UPDATE', [previousSeatSession])
       const room = targetRoomId ? await lockRoomById(client, targetRoomId) : null
       const replay = await replayOrReuse(client, scopeKey, sessionId, input.commandId, digest)
       if (replay) return replay
@@ -337,6 +349,11 @@ export class LobbyService {
       }
       if (session.active_room_id && session.active_room_id !== room.id) {
         const result = rejected('ALREADY_IN_ROOM')
+        await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
+        return result
+      }
+      if (room.status === 'playing') {
+        const result = await this.reclaimSeat(client, room, sessionId, input.nickname)
         await saveCommand(client, { roomId: room.id, scopeKey, sessionId, commandId: input.commandId, digest, result })
         return result
       }
@@ -403,7 +420,51 @@ export class LobbyService {
     })
   }
 
+  /**
+   * Mid-game rejoin: a new session takes back a seat by its nickname, but only a seat the bot is
+   * driving or whose session no longer works, so an active player can never be bumped.
+   */
+  private async reclaimSeat(client: PoolClient, room: RoomRow, sessionId: string, nickname: string): Promise<CommandResult> {
+    const already = await client.query('SELECT 1 FROM room_members WHERE room_id = $1 AND session_id = $2', [room.id, sessionId])
+    if (already.rowCount) return { kind: 'accepted', snapshot: await snapshotFor(client, room, sessionId) }
+    const seat = await client.query<{ session_id: string }>(
+      `SELECT room_members.session_id
+         FROM room_members
+         JOIN sessions ON sessions.id = room_members.session_id
+         JOIN access_tokens ON access_tokens.id = sessions.token_id
+        WHERE room_members.room_id = $1 AND lower(room_members.nickname) = lower($2)
+          AND (room_members.autopilot IS NOT NULL OR sessions.revoked_at IS NOT NULL
+               OR sessions.expires_at <= to_timestamp($3 / 1000.0) OR access_tokens.revoked_at IS NOT NULL)
+        ORDER BY room_members.seat
+        LIMIT 1
+        FOR UPDATE OF room_members`,
+      [room.id, nickname.trim(), this.now()],
+    )
+    const previous = seat.rows[0]?.session_id
+    if (!previous) return rejected('SEAT_NOT_CLAIMABLE')
+    await client.query('UPDATE sessions SET active_room_id = NULL WHERE id = $1 AND active_room_id = $2', [previous, room.id])
+    await client.query('UPDATE room_members SET session_id = $1, autopilot = NULL WHERE room_id = $2 AND session_id = $3', [sessionId, room.id, previous])
+    await client.query('UPDATE sessions SET active_room_id = $1 WHERE id = $2', [room.id, sessionId])
+    return { kind: 'accepted', snapshot: await snapshotFor(client, room, sessionId) }
+  }
+
+  /** After a finished (or closed) game the session returns to the lobby; the seat row stays for the record. */
+  private async leaveEndedRoom(sessionId: string, roomCode: string, input: { commandId: string; expectedRevision: number }): Promise<CommandResult | null> {
+    return withTransaction(this.pool, async (client) => {
+      const session = await lockSession(client, sessionId)
+      if (sessionFailure(session, this.now()) || !session?.active_room_id) return null
+      const room = await lockRoomById(client, session.active_room_id)
+      if (!room || room.code !== roomCode || (room.status !== 'finished' && room.status !== 'closed')) return null
+      await client.query('UPDATE sessions SET active_room_id = NULL WHERE id = $1', [sessionId])
+      const result: CommandResult = { kind: 'accepted', snapshot: emptySnapshot }
+      await saveCommand(client, { roomId: room.id, scopeKey: `room:${room.id}`, sessionId, commandId: input.commandId, digest: requestDigest(input, this.pepper), result })
+      return result
+    })
+  }
+
   async leaveRoom(sessionId: string, roomCode: string, input: { commandId: string; expectedRevision: number }) {
+    const ended = await this.leaveEndedRoom(sessionId, roomCode, input)
+    if (ended) return ended
     return this.memberCommand(sessionId, roomCode, input, async (client, room) => {
       await client.query('DELETE FROM room_members WHERE room_id = $1 AND session_id = $2', [room.id, sessionId])
       await client.query('UPDATE sessions SET active_room_id = NULL WHERE id = $1', [sessionId])

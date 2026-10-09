@@ -24,6 +24,7 @@ const messages: Record<DisplayErrorCode, string> = {
   GAME_NOT_FOUND: '对局存档不存在。',
   ROOM_ISOLATED: '房间存档校验失败，已隔离保护，无法继续操作。',
   PROTOCOL_VERSION_UNSUPPORTED: '客户端版本过旧，请刷新页面。',
+  SEAT_NOT_CLAIMABLE: '这局已经开始。只有机器人托管中或已退出的座位，才能用原来的昵称接回。',
   UNKNOWN_ERROR: '发生未知网络错误，请刷新页面或稍后重试。',
 }
 

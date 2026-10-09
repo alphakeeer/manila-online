@@ -12,6 +12,7 @@ import {
   LoginRequestSchema,
   StartGameRequestSchema,
   SetPirateVariantRequestSchema,
+  SetAutopilotRequestSchema,
   SetReadyRequestSchema,
   SessionResponseSchema,
   SettlementHistorySchema,
@@ -33,6 +34,7 @@ import { LobbyService, closeInactiveLobbies, type CommandResult, type LobbyError
 import { startRevocationListener } from './realtime/revocationListener.js'
 import { GameService, type GameCommandResult, type GameErrorCode } from './game/service.js'
 import { RoomHub } from './realtime/roomHub.js'
+import { SeatAutopilot } from './game/seatAutopilot.js'
 
 export interface ServerDependencies {
   pool: Pool
@@ -48,6 +50,10 @@ export interface ServerDependencies {
   pickIndex?: (count: number) => number
   /** Test-only override for fixed-window request limits. */
   rateLimits?: { loginMax?: number; sessionWriteMax?: number }
+  /** Seat takeover timings; defaults to the config in non-test environments and off in tests unless given. */
+  autopilot?: { awayAfterMs: number; thinkMs: number; sweepIntervalMs?: number }
+  /** Test-only deterministic choice source for takeover moves. */
+  autopilotRandom?: () => number
 }
 
 const sessionCookieName = 'manila_session'
@@ -82,6 +88,7 @@ function commandStatus(code: LobbyErrorCode) {
     case 'ALREADY_IN_ROOM':
     case 'REVISION_CONFLICT':
     case 'COMMAND_ID_REUSED':
+    case 'SEAT_NOT_CLAIMABLE':
       return 409
   }
 }
@@ -117,8 +124,21 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     (roomCode) => app.log.error({ roomCode }, 'isolated invalid game snapshot'),
     dependencies.randomSeed,
     dependencies.pickIndex,
+    dependencies.autopilotRandom,
   )
-  const hub = new RoomHub(game)
+  const autopilotOptions = dependencies.autopilot ?? (config.environment !== 'test'
+    ? { awayAfterMs: config.autopilotAwayMs ?? 30_000, thinkMs: config.autopilotThinkMs ?? 1_500 }
+    : null)
+  let autopilot: SeatAutopilot | null = null
+  const hub = new RoomHub(game, (roomCode) => { void autopilot?.check(roomCode) }, () => clock.now())
+  if (autopilotOptions) {
+    autopilot = new SeatAutopilot(game, hub, (roomCode) => hub.publish(roomCode), { ...autopilotOptions, now: () => clock.now() },
+      (roomCode, error) => app.log.warn({ roomCode, code: 'AUTOPILOT_FAILED', reason: error instanceof Error ? error.message : 'unknown' }, 'seat autopilot move failed'))
+  }
+  const autopilotSweep = autopilot
+    ? setInterval(() => { void autopilot?.sweep() }, dependencies.autopilot?.sweepIntervalMs ?? 10_000)
+    : null
+  autopilotSweep?.unref?.()
   const heartbeatLimiter = new FixedWindowRateLimiter(6, 60_000, clock)
   const lobbyIdleTimeoutMs = config.lobbyIdleTimeoutMs ?? 24 * 60 * 60 * 1000
   const maintenanceIntervalMs = dependencies.maintenanceIntervalMs ?? 60_000
@@ -137,8 +157,11 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
       }, maintenanceIntervalMs)
     : null
   maintenanceTimer?.unref?.()
+  app.addHook('onReady', async () => { void autopilot?.sweep() })
   app.addHook('onClose', async () => {
     if (maintenanceTimer) clearInterval(maintenanceTimer)
+    if (autopilotSweep) clearInterval(autopilotSweep)
+    autopilot?.stop()
     await revocationListenerReady.catch(() => undefined)
     if (stopRevocationListener) await stopRevocationListener()
     await dependencies.pool.end()
@@ -315,7 +338,10 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     if (!session) return reply
     const parsed = JoinRoomRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
-    return sendCommand(reply, await lobby.joinRoom(session.id, parsed.data))
+    const result = await lobby.joinRoom(session.id, parsed.data)
+    // A reclaimed seat changes who drives it; let the table see the bot badge disappear.
+    if (result.kind === 'accepted' && result.snapshot.room?.status === 'playing') void hub.publish(result.snapshot.room.code)
+    return sendCommand(reply, result)
   })
 
   app.post('/api/rooms/:roomCode/ready', async (request, reply) => {
@@ -368,6 +394,17 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
     if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
     const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
     const result = await game.start(session.id, roomCode, parsed.data)
+    if (result.kind === 'accepted') await hub.publish(roomCode)
+    return sendGame(reply, result)
+  })
+
+  app.post('/api/rooms/:roomCode/autopilot', async (request, reply) => {
+    const session = await authenticateWrite(request, reply)
+    if (!session) return reply
+    const parsed = SetAutopilotRequestSchema.safeParse(request.body)
+    if (!parsed.success) return sendError(reply, 400, 'VALIDATION_ERROR')
+    const roomCode = String((request.params as { roomCode?: string }).roomCode ?? '').trim().toUpperCase()
+    const result = await game.setAutopilot(session.id, roomCode, parsed.data.enabled)
     if (result.kind === 'accepted') await hub.publish(roomCode)
     return sendGame(reply, result)
   })

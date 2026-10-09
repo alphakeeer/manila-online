@@ -96,6 +96,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T22：done / `b7bf437` / [T22](tasks/T22-bot-table-game-over.md)：`npm test` 20 文件 84 测试（新增机器人全决策类型合法性与终局画面渲染测试）、`npm run build`（JS gzip 116.79 kB，产物不含 `botDelay`）通过；放宽限流下 3 条 Chromium E2E 通过（完整对局 34.5 s）；`npm run bots -- --players 4 --phones 1 --delay 900` 有头四窗口实跑至终局（288 s，无卡死），另以 1440×900 与 iPhone 13 视口截图复核终局画面。限制：终局后玩家无法离房再开一局（服务端只允许大厅阶段离房）。
 - T23：done / `ea34cd3` / [T23](tasks/T23-seat-autopilot.md)：`npm run test:integration` 9 文件 27 测试通过（新增 `seatAutopilot.test.ts`：主动托管与接回、退出登录立即托管并按昵称接回、断线宽限后托管与重连解除、全座位托管打到终局后返回大厅；连续 5 次运行稳定）；修复首版代打事务先锁房间引发的死锁（改为先锁会话）。三视口多浏览器实测：关闭手机窗口 30.3 s 后被托管，新浏览器以原昵称接回、徽标消失，页面无错误。
 - T24：done / `ea34cd3` / [T24](tasks/T24-quick-join.md)：邀请链接自动加入（记住昵称）、未记住昵称时房间码预填、二维码渲染均经多浏览器脚本验证；`uqr` 二维码编码器独立按需分包（10.89 kB）；`npm test` 20 文件 85 测试、`npm run build`、三条 Chromium E2E（完整对局 33.9 s）通过。
+- T25：done / `559678c` / [T25](tasks/T25-performance.md)：基准（各 2–3 次取中位）：图片 1728 KB → 342 KB；模拟手机 4G 下对局资源 3.77 s → 约 1.0 s；登录页就绪 1.32 s → 1.19 s、传输 436 KB → 361 KB（本地未压缩，生产由 Caddy 压缩）；5 人在线命令 + 全员广播 p50 14.5 ms → 5.5 ms、p95 约 20 ms → 约 9.5 ms。`npm test` 20 文件 85 测试、`npm run test:integration` 9 文件 27 测试、三条 E2E（完整对局 30.3 s）通过。
 - 当前可启动：T20（Phase 5 已完成；Phase 6 需外部条件）。
 - MVP 功能范围和生产部署形态已在本地真实链路验证；真实公网发布仍以 T20 为前提。
 

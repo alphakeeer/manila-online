@@ -8,6 +8,7 @@ import { DiceTray } from './DiceTray'
 import { errorMessage } from './errorMessages'
 import { EventFeed, EventToasts } from './EventFeed'
 import { GameBoard, type BoardPreview } from './GameBoard'
+export { preloadGameAssets } from './GameBoard'
 import { deriveEvents, rolledDice, type FeedEvent } from './gameEvents'
 import { phaseActivity, phaseGroup, phaseSteps, yourTurnPrompt } from './labels'
 import type { PlacementChoice } from './placement'
@@ -149,7 +150,8 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
       }
       seenSettlements.current = count
     }).catch(() => undefined)
-  }, [roomCode, snapshot?.room.revision])
+    // Settlements are only written when a voyage ends (voyage +1) or the game ends; no need to poll every move.
+  }, [roomCode, snapshot?.public.voyage, Boolean(snapshot?.public.standings)])
 
   const yourTurn = Boolean(snapshot?.decision)
   useEffect(() => {

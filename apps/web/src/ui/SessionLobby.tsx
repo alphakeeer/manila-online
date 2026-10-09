@@ -9,11 +9,15 @@ import {
   type PirateVariant,
   type SessionView,
 } from '@manila/protocol'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Dialog } from './Dialog'
 import { errorMessage } from './errorMessages'
-import { GameRoom } from './GameRoom'
 import { InviteCard, consumeInviteCode, rememberNickname, rememberedNickname } from './Invite'
+
+// The game screen (board, animations, charts) is its own chunk: the login page stays small,
+// and the lobby prefetches it while players get ready.
+const loadGameRoom = () => import('./GameRoom')
+const GameRoom = lazy(() => loadGameRoom().then((module) => ({ default: module.GameRoom })))
 
 type Status =
   | { kind: 'loading' }
@@ -135,6 +139,12 @@ export function SessionLobby() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
+  const roomCodeForPrefetch = snapshot?.room?.code
+  useEffect(() => {
+    if (!roomCodeForPrefetch) return
+    void loadGameRoom().then((module) => module.preloadGameAssets()).catch(() => undefined)
+  }, [roomCodeForPrefetch])
+
   // Invite links (?join=CODE) join straight away when we already know the player's nickname.
   useEffect(() => {
     if (status.kind !== 'signedIn' || !snapshot || snapshot.room || !invite || !nickname.trim() || autoJoined.current) return
@@ -216,11 +226,11 @@ export function SessionLobby() {
   </Dialog>
   const room = snapshot?.room
   if (room?.status === 'playing' || room?.status === 'finished' || room?.status === 'closed') {
-    return <>
+    return <Suspense fallback={<main className="session-lobby"><div className="lobby-card lobby-card--center"><span className="loader-wheel" aria-hidden="true" /><p>正在展开海图…</p></div></main>}>
       <GameRoom roomCode={room.code} initialSnapshot={gameSnapshot} onSessionExpired={() => { setGameSnapshot(null); setSnapshot(null); setStatus({ kind: 'signedOut' }) }} onLogout={() => void logout(true)}
         onReturnToLobby={(revision) => { setGameSnapshot(null); void send(`/api/rooms/${room.code}/members/me`, 'DELETE', { commandId: commandId(), expectedRevision: revision }) }} />
       {confirmLogout && logoutDialog}
-    </>
+    </Suspense>
   }
   const seats = [1, 2, 3, 4, 5]
   const readyCount = room?.members.filter((member) => member.ready).length ?? 0

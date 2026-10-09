@@ -6,15 +6,27 @@ import { deltaText, locationLabel, playerName } from './labels'
 import { MarketPriceTrack } from './MarketPriceTrack'
 import { samePlacement, type PlacementChoice } from './placement'
 
-/** Keep production imports explicit: Vite must not glob every archival source image. */
+/**
+ * Keep production imports explicit: Vite must not glob every archival source image.
+ * These are WebP derivatives of manila_assets/ (regenerate with scripts/optimize-assets.py).
+ */
 const assets = {
-  board: new URL('../../../../manila_assets/game_board.jpg', import.meta.url).href,
-  nutmeg: new URL('../../../../manila_assets/nutmeg_shares.png', import.meta.url).href,
-  silk: new URL('../../../../manila_assets/silk_shares.png', import.meta.url).href,
-  jade: new URL('../../../../manila_assets/jade_shares.png', import.meta.url).href,
-  ginseng: new URL('../../../../manila_assets/ginseng_shares.png', import.meta.url).href,
+  board: new URL('../assets/game_board.webp', import.meta.url).href,
+  nutmeg: new URL('../assets/nutmeg_shares.webp', import.meta.url).href,
+  silk: new URL('../assets/silk_shares.webp', import.meta.url).href,
+  jade: new URL('../assets/jade_shares.webp', import.meta.url).href,
+  ginseng: new URL('../assets/ginseng_shares.webp', import.meta.url).href,
 } as const
 export const shareArt = assets
+
+/** Warm the HTTP cache while players wait in the lobby, so the board paints instantly at game start. */
+export function preloadGameAssets() {
+  for (const url of Object.values(assets)) {
+    const image = new Image()
+    image.decoding = 'async'
+    image.src = url
+  }
+}
 const laneName = ['left', 'center', 'right'] as const
 const shareWidth = 221
 const lastRouteSpace = 13

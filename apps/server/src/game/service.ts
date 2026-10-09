@@ -208,6 +208,49 @@ export class GameService {
     })
   }
 
+  /**
+   * Broadcast path: every subscriber's view from one consistent read (room + game + members in a
+   * single statement) instead of one locking transaction per subscriber. Same authorization rules
+   * as latest(); an unreadable snapshot falls back to latest() so isolation still happens.
+   */
+  async snapshotsFor(roomCode: string, sessionIds: readonly string[]): Promise<Map<string, GameCommandResult>> {
+    const results = new Map<string, GameCommandResult>()
+    if (sessionIds.length === 0) return results
+    const found = await this.pool.query<RoomRow & GameRow & { members: MemberRow[] | null }>(
+      `SELECT rooms.id, rooms.code, rooms.status, rooms.pirate_variant, rooms.revision,
+              games.snapshot, games.seed, games.state_version, games.rules_version, games.protocol_version,
+              (SELECT json_agg(member ORDER BY member.seat) FROM (
+                 SELECT session_id, player_id, nickname, seat, is_ready, autopilot FROM room_members WHERE room_id = rooms.id
+               ) member) AS members
+         FROM rooms JOIN games ON games.room_id = rooms.id
+        WHERE rooms.code = $1`,
+      [roomCode],
+    )
+    const row = found.rows[0]
+    if (!row || row.status === 'isolated' || this.invalidGame(row)) {
+      for (const sessionId of sessionIds) results.set(sessionId, await this.latest(sessionId, roomCode))
+      return results
+    }
+    const sessions = await this.pool.query<SessionRow>(
+      `SELECT sessions.id, sessions.active_room_id, sessions.expires_at, sessions.revoked_at, access_tokens.revoked_at AS token_revoked_at
+         FROM sessions JOIN access_tokens ON access_tokens.id = sessions.token_id WHERE sessions.id = ANY($1::text[])`,
+      [[...sessionIds]],
+    )
+    const sessionById = new Map(sessions.rows.map((session) => [session.id, session]))
+    const room: RoomRow = { id: row.id, code: row.code, status: row.status, pirate_variant: row.pirate_variant, revision: row.revision }
+    const roomMembers = row.members ?? []
+    for (const sessionId of sessionIds) {
+      const session = sessionById.get(sessionId) ?? null
+      const authError = sessionError(session, this.now())
+      if (authError) { results.set(sessionId, reject(authError)); continue }
+      if (session?.active_room_id !== room.id) { results.set(sessionId, reject('NOT_MEMBER')); continue }
+      if (room.status !== 'playing' && room.status !== 'finished' && room.status !== 'closed') { results.set(sessionId, reject('ROOM_CLOSED')); continue }
+      const viewer = roomMembers.find((member) => member.session_id === sessionId)
+      results.set(sessionId, viewer ? { kind: 'accepted', snapshot: project(room, row.snapshot, roomMembers, viewer) } : reject('NOT_MEMBER'))
+    }
+    return results
+  }
+
   async history(sessionId: string, roomCode: string): Promise<GameHistoryResult> {
     return withTransaction<GameHistoryResult>(this.pool, async (client) => {
       const rejectHistory = (code: GameErrorCode): GameHistoryResult => ({ kind: 'rejected', code })

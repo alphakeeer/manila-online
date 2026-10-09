@@ -161,7 +161,7 @@ export function buildServer(config: ServerConfig, dependencies: ServerDependenci
   app.addHook('onClose', async () => {
     if (maintenanceTimer) clearInterval(maintenanceTimer)
     if (autopilotSweep) clearInterval(autopilotSweep)
-    autopilot?.stop()
+    await autopilot?.stop()
     await revocationListenerReady.catch(() => undefined)
     if (stopRevocationListener) await stopRevocationListener()
     await dependencies.pool.end()

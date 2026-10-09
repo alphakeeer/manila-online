@@ -13,6 +13,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=@manila/web",
+    "bench:server": "node --env-file-if-exists=.env --import tsx scripts/bench/server.ts",
+    "bench:web": "npm run build && node --env-file-if-exists=.env --import tsx scripts/bench/web.ts",
     "bots": "node scripts/bot-table.mjs",
     "db:backup": "scripts/backup-db.sh",
     "db:migrate": "npm run migrate --workspace=@manila/server",

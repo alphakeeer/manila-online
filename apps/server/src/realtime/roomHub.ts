@@ -78,8 +78,10 @@ export class RoomHub {
       this.onChange(roomCode)
       const room = this.subscribers.get(roomCode)
       if (!room) return
-      for (const subscriber of [...room]) {
-        const result = await this.game.latest(subscriber.sessionId, roomCode)
+      const subscribers = [...room]
+      const views = await this.game.snapshotsFor(roomCode, [...new Set(subscribers.map((subscriber) => subscriber.sessionId))])
+      for (const subscriber of subscribers) {
+        const result = views.get(subscriber.sessionId) ?? await this.game.latest(subscriber.sessionId, roomCode)
         if (result.kind === 'accepted') {
           send(subscriber.socket, { type: 'room.snapshot', snapshot: result.snapshot })
         } else {

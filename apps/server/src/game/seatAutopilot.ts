@@ -21,6 +21,7 @@ export class SeatAutopilot {
   /** Revision at which the bot found no legal move; wait for the state to change instead of spinning. */
   private readonly stuck = new Map<string, number>()
   private stopped = false
+  private readonly inflight = new Set<Promise<void>>()
 
   constructor(
     private readonly game: GameService,
@@ -33,10 +34,18 @@ export class SeatAutopilot {
   private get now() { return this.options.now?.() ?? Date.now() }
 
   /** Re-evaluates one room; cheap and idempotent, safe to call on every change. */
-  async check(roomCode: string): Promise<void> {
-    if (this.stopped || this.running.has(roomCode)) return
+  check(roomCode: string): Promise<void> {
+    if (this.stopped || this.running.has(roomCode)) return Promise.resolve()
+    const evaluation = this.evaluate(roomCode)
+    this.inflight.add(evaluation)
+    void evaluation.finally(() => this.inflight.delete(evaluation))
+    return evaluation
+  }
+
+  private async evaluate(roomCode: string): Promise<void> {
     try {
       const state = await this.game.autopilotState(roomCode)
+      if (this.stopped) return
       const actor = state?.actor
       if (!state || !actor) return this.cancel(roomCode)
       if (this.stuck.get(roomCode) === state.revision) return
@@ -55,7 +64,11 @@ export class SeatAutopilot {
       const existing = this.pending.get(roomCode)
       if (existing && existing.revision === state.revision && existing.kind === kind) return
       this.cancel(roomCode)
-      const timer = setTimeout(() => { void this.fire(roomCode, state.revision) }, delay)
+      const timer = setTimeout(() => {
+        const move = this.fire(roomCode, state.revision)
+        this.inflight.add(move)
+        void move.finally(() => this.inflight.delete(move))
+      }, delay)
       timer.unref?.()
       this.pending.set(roomCode, { timer, revision: state.revision, kind })
     } catch (error) {
@@ -71,9 +84,11 @@ export class SeatAutopilot {
     }
   }
 
-  stop() {
+  /** Cancels timers and waits for a move already in its transaction, so shutdown never races the pool. */
+  async stop() {
     this.stopped = true
     for (const code of [...this.pending.keys()]) this.cancel(code)
+    await Promise.allSettled([...this.inflight])
   }
 
   private cancel(roomCode: string) {
@@ -99,6 +114,6 @@ export class SeatAutopilot {
       this.running.delete(roomCode)
     }
     // publish() already re-checks, but a skipped/stuck move must re-arm too.
-    await this.check(roomCode)
+    if (!this.stopped) await this.check(roomCode)
   }
 }

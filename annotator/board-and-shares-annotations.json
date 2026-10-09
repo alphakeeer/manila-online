@@ -32,7 +32,7 @@
       },
       {
         "id": "share-5",
-        "name": "port-c-punt-slot",
+        "name": "port-a-punt-slot",
         "type": "jade_share",
         "x": 360.89,
         "y": 423.28,
@@ -50,7 +50,7 @@
       },
       {
         "id": "share-7",
-        "name": "port-a-punt-slot",
+        "name": "port-c-punt-slot",
         "type": "jade_share",
         "x": 367.43,
         "y": 129.56,
@@ -437,7 +437,7 @@
       },
       {
         "id": "player-51",
-        "name": "port-a-accomplice-slot",
+        "name": "port-c-reward-slot",
         "type": "player_red",
         "x": 75.23,
         "y": 77.17,
@@ -446,7 +446,7 @@
       },
       {
         "id": "player-52",
-        "name": "port-b-accomplice-slot",
+        "name": "port-b-reward-slot",
         "type": "player_red",
         "x": 71.49,
         "y": 225.77,
@@ -455,7 +455,7 @@
       },
       {
         "id": "player-53",
-        "name": "port-c-accomplice-slot",
+        "name": "port-a-reward-slot",
         "type": "player_red",
         "x": 72.14,
         "y": 376.69,
@@ -464,7 +464,7 @@
       },
       {
         "id": "player-54",
-        "name": "shipyard-c-accomplice-slot",
+        "name": "port-a-accomplice-slot",
         "type": "player_red",
         "x": 140.62,
         "y": 389.66,
@@ -473,7 +473,7 @@
       },
       {
         "id": "player-55",
-        "name": "shipyard-b-accomplice-slot",
+        "name": "port-b-accomplice-slot",
         "type": "player_red",
         "x": 141.57,
         "y": 234.53,
@@ -482,7 +482,7 @@
       },
       {
         "id": "player-56",
-        "name": "shipyard-a-accomplice-slot",
+        "name": "port-c-accomplice-slot",
         "type": "player_red",
         "x": 141.99,
         "y": 90.28,
@@ -491,7 +491,7 @@
       },
       {
         "id": "player-57",
-        "name": "shipyard-a-accomplice-slot-1",
+        "name": "shipyard-a-reward-slot",
         "type": "player_red",
         "x": 986.93,
         "y": 321.08,
@@ -500,7 +500,7 @@
       },
       {
         "id": "player-58",
-        "name": "shipyard-a-accomplice-slot-2",
+        "name": "shipyard-a-accomplice-slot",
         "type": "player_red",
         "x": 962.25,
         "y": 387.53,
@@ -509,7 +509,7 @@
       },
       {
         "id": "player-59",
-        "name": "shipyard-b-accomplice-slot-1",
+        "name": "shipyard-b-reward-slot",
         "type": "player_red",
         "x": 987.94,
         "y": 647.66,
@@ -518,7 +518,7 @@
       },
       {
         "id": "player-60",
-        "name": "shipyard-b-accomplice-slot-2",
+        "name": "shipyard-b-accomplice-slot",
         "type": "player_red",
         "x": 955.04,
         "y": 707.93,
@@ -527,7 +527,7 @@
       },
       {
         "id": "player-61",
-        "name": "shipyard-c-accomplice-slot-1",
+        "name": "shipyard-c-reward-slot",
         "type": "player_red",
         "x": 980.48,
         "y": 959.13,
@@ -536,7 +536,7 @@
       },
       {
         "id": "player-62",
-        "name": "shipyard-c-accomplice-slot-2",
+        "name": "shipyard-c-accomplice-slot",
         "type": "player_red",
         "x": 955.4,
         "y": 1020.01,

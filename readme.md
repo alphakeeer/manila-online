@@ -78,6 +78,20 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5173 E2E_ACCESS_TOKEN=... npm run test:e2e
 
 登录后可创建或输入房间码加入一个最多 5 人的私人大厅。大厅短轮询成员和准备状态；创建、加入、准备、规则变体和离开都带随机 `commandId`，已入房命令还带当前 `revision`，因此超时重试不会重复修改状态。房主始终是最低有效座位；成员变更、离开或海盗规则变更会清空全员准备。开局后服务器以持久快照推进竞拍、购股、选货、下水、放置、三轮移动、领航、海盗、财务和结算，并向每个座位投影私有视图；WebSocket 只推送接收者快照和 presence。公开房间列表和聊天仍未实现。
 
+### 本地机器人对局（观察真实界面）
+
+开发服务器下给页面地址加 `?bot=1`（可选 `&botDelay=毫秒`）会启用随机托管：只从服务端下发的合法选项中随机决策，经正常命令接口提交；右上角可暂停托管、亲自接手。生产构建不包含此开关。
+
+一条命令开多个真实浏览器窗口、各自独立会话，从建房、准备到整局自动进行，终局后窗口保留以便查看结算画面：
+
+```bash
+npm run dev:server:relaxed
+npm run dev
+npm run bots -- --players 4 --phones 1 --delay 1200 --variant strengthened
+```
+
+`dev:server:relaxed` 与 CI 一样放宽登录与写操作限流，否则机器人很快会触发 30 次/分钟的写限制。未指定 `--token` 时脚本会在本地库创建一个标签为 `bot-table` 的测试 Token。
+
 ## 生产部署
 
 单机公网部署使用 Caddy 自动 HTTPS、同源 app 容器和独立 PostgreSQL 卷；数据库不映射主机端口。完整步骤、升级/回滚、备份恢复和 pepper 保管见 [部署手册](docs/DEPLOYMENT.md)。

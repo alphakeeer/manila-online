@@ -1,4 +1,4 @@
-import type { GameRoomSnapshot, SettlementEntry } from '@manila/protocol'
+import type { SettlementEntry } from '@manila/protocol'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { commodityPresentation } from './commodityPresentation'
 import { useAnimatedNumber } from './motion'
@@ -58,23 +58,4 @@ export function SettlementReveal({ entry, onClose }: { entry: SettlementEntry; o
     </div>
     <button type="button" className="primary-action" onClick={onClose}>继续航行</button>
   </section>
-}
-
-export function FinalStandings({ standings, selfSeat }: { standings: NonNullable<GameRoomSnapshot['public']['standings']>; selfSeat: number }) {
-  const [expanded, setExpanded] = useState(true)
-  const medals = ['🥇', '🥈', '🥉']
-  return <>
-    {expanded && <Confetti />}
-    <section className={`standings${expanded ? ' is-expanded' : ''}`} aria-label="最终排名">
-      <h2>最终排名</h2>
-      <ol className="podium">
-        {standings.map((standing, index) => <li key={standing.seat} className={`podium__row seat-${standing.seat}${standing.winner ? ' is-winner' : ''}${standing.seat === selfSeat ? ' is-self' : ''}`} style={{ animationDelay: `${0.2 + (standings.length - index) * 0.22}s` }}>
-          <span className="podium__rank">{medals[index] ?? `#${index + 1}`}</span>
-          <span className="podium__name">{standing.nickname}{standing.seat === selfSeat ? '（你）' : ''}</span>
-          <strong className="podium__wealth">{standing.wealth}</strong>
-        </li>)}
-      </ol>
-      <button type="button" className="quiet-action" onClick={() => setExpanded((value) => !value)}>{expanded ? '查看棋盘' : '展开结果'}</button>
-    </section>
-  </>
 }

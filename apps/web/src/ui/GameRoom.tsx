@@ -1,7 +1,9 @@
 import { ApiErrorSchema, GameRoomSnapshotSchema, PROTOCOL_VERSION, SettlementHistorySchema, type ApiErrorCode, type GameCommandRequest, type GameRoomSnapshot, type SettlementEntry, type SettlementHistory } from '@manila/protocol'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DecisionPanel } from './ActionDock'
-import { FinalStandings, SettlementReveal, TurnBanner } from './Celebrations'
+import { chooseAction, readAutopilotSettings } from './autopilot'
+import { SettlementReveal, TurnBanner } from './Celebrations'
+import { GameOverScreen } from './GameOver'
 import { DiceTray } from './DiceTray'
 import { errorMessage } from './errorMessages'
 import { EventFeed, EventToasts } from './EventFeed'
@@ -47,6 +49,8 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
   const [reveal, setReveal] = useState<SettlementEntry | null>(null)
   const [dockOpen, setDockOpen] = useState(true)
   const [muted, setMutedState] = useState(isMuted)
+  const [autopilot] = useState(readAutopilotSettings)
+  const [botOn, setBotOn] = useState(autopilot.enabled)
   const revision = useRef(initialSnapshot?.room.revision ?? -1)
   const previous = useRef<GameRoomSnapshot | null>(initialSnapshot)
   const seenSettlements = useRef<number | null>(null)
@@ -160,6 +164,30 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
     return () => window.clearTimeout(timer)
   }, [error])
 
+  // Dev-only random autopilot: think for a moment, show the placement, then submit through the normal command path.
+  const decisionKey = snapshot?.decision ? JSON.stringify(snapshot.decision) : ''
+  useEffect(() => {
+    if (!botOn || !snapshot?.decision || pending || !connected || snapshot.room.readOnly) return
+    const rateLimited = error === 'RATE_LIMITED'
+    const cautious = error !== null && !rateLimited
+    const timers: number[] = []
+    timers.push(window.setTimeout(() => {
+      const current = previous.current
+      if (!current?.decision) return
+      const action = chooseAction(current, Math.random, cautious)
+      if (!action) return
+      const send = () => void sendCommand({ protocolVersion: PROTOCOL_VERSION, commandId: crypto.randomUUID(), expectedRevision: current.room.revision, action })
+      if (action.type === 'placeAccomplice') {
+        setPlacementChoice(action.location)
+        setDockOpen(true)
+        timers.push(window.setTimeout(send, 750))
+      } else send()
+    }, rateLimited ? 8000 : autopilot.delay * (0.6 + Math.random() * 0.8)))
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+    // sendCommand reads refs; re-plan only when the decision, connection or last outcome changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botOn, snapshot?.room.revision, decisionKey, pending, connected, error])
+
   const closeReveal = useCallback(() => setReveal(null), [])
   const onCommand = (request: GameCommandRequest) => void sendCommand(request)
 
@@ -178,6 +206,7 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
       <PhaseTrack snapshot={snapshot} />
       <div className="game-header__tools">
         <span className={`room-chip${connected ? ' is-online' : ''}`} title={connected ? '已连接' : '重连中'}><i aria-hidden="true" />{snapshot.room.code}</span>
+        {autopilot.enabled && <button className={`bot-toggle${botOn ? ' is-on' : ''}`} type="button" aria-pressed={botOn} onClick={() => setBotOn((on) => !on)}>{botOn ? '🤖 托管中' : '🤖 已暂停'}</button>}
         <button className="icon-button" type="button" aria-label={muted ? '开启音效' : '关闭音效'} aria-pressed={!muted} onClick={() => { setMuted(!muted); setMutedState(!muted); if (muted) play('tick') }}>{muted ? '🔇' : '🔊'}</button>
         <button className="quiet-action quiet-action--header" type="button" onClick={onLogout}>退出</button>
       </div>
@@ -207,8 +236,8 @@ export function GameRoom({ roomCode, initialSnapshot, onSessionExpired, onLogout
         <Purse snapshot={snapshot} pending={pending} readOnly={readOnly} onCommand={onCommand} />
       </div>
     </section>
-    {reveal && <SettlementReveal key={reveal.voyage} entry={reveal} onClose={closeReveal} />}
-    {snapshot.public.standings && <FinalStandings standings={snapshot.public.standings} selfSeat={snapshot.self.seat} />}
+    {reveal && !snapshot.public.standings && <SettlementReveal key={reveal.voyage} entry={reveal} onClose={closeReveal} />}
+    {snapshot.public.standings && <GameOverScreen snapshot={snapshot} history={history} />}
     <TurnBanner turnKey={turnKey} label={yourTurnPrompt(decision?.kind ?? snapshot.public.phase.kind)} />
     {error && <p className="rule-error" role="alert"><span>{errorMessage(error)}</span><button type="button" aria-label="关闭提示" onClick={() => setError(null)}>×</button></p>}
   </main>

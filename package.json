@@ -13,11 +13,13 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=@manila/web",
+    "bots": "node scripts/bot-table.mjs",
     "db:backup": "scripts/backup-db.sh",
     "db:migrate": "npm run migrate --workspace=@manila/server",
     "db:restore-drill": "scripts/restore-drill.sh",
     "dev": "npm run dev --workspace=@manila/web",
     "dev:server": "npm run dev --workspace=@manila/server",
+    "dev:server:relaxed": "SESSION_WRITE_RATE_LIMIT_MAX=100000 LOGIN_RATE_LIMIT_MAX=1000 npm run dev:server",
     "simulate": "tsx scripts/simulate.ts",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node --env-file-if-exists=.env ./node_modules/playwright/cli.js test",

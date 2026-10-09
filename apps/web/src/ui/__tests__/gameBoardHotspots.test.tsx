@@ -41,12 +41,12 @@ describe('GameBoard placement hotspots', () => {
     const onSelect = vi.fn()
     render(<GameBoard snapshot={snapshotWithPlacement()} placementChoice={null} onSelectPlacement={onSelect} />)
 
-    fireEvent.click(screen.getByRole('button', { name: '放置同伙：port，费用 4' }))
+    fireEvent.click(screen.getByRole('button', { name: '放置同伙：港口 A，费用 4' }))
     expect(onSelect).toHaveBeenCalledWith({ area: 'port', berth: 'A' })
 
     fireEvent.click(screen.getByRole('button', { name: '货物位 1，费用 2' }))
     expect(onSelect).toHaveBeenCalledWith({ area: 'cargo', boatId: 'boat-1', slot: 0 })
 
-    expect(screen.getByLabelText('1 号位同伙：smallPilot')).toBeTruthy()
+    expect(screen.getByLabelText('P1 的同伙：小领航员')).toBeTruthy()
   })
 })

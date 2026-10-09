@@ -93,6 +93,7 @@ B02 使用新局开始的合法 API 动作序列复现；当前 UI 没有独立�
 - T19：done / `626b8e9` / 多阶段 `Dockerfile`、`compose.prod.yaml`（Caddy HTTPS + app + 内部 PostgreSQL）、同源静态服务、生产配置门禁、备份/恢复脚本、`verify:deployment` 自检和 [部署手册](DEPLOYMENT.md) 已交付；本地生产形态、HTTPS/WSS E2E、重启持久化与真实备份恢复演练通过，证据见 4.2。
 - T20：blocked / 工具已就绪（Phase 6 任务与验证脚本已提交），等待真实主机、域名、DNS、TLS 和秘密授权；未执行真实公网部署，也未对外上线。
 - T21：done / `621a22f`、`bd4d8b9` / 纯前端重构见 [T21](tasks/T21-play-experience.md)：`npm test` 18 文件 71 测试、`npm run build`（JS gzip 112.60 kB，图片不变）通过；在本地 PostgreSQL + `SESSION_WRITE_RATE_LIMIT_MAX=100000 LOGIN_RATE_LIMIT_MAX=1000`（与 CI 相同）下，会话、三人竞拍、三人完整对局 3 条 Chromium E2E 通过（完整对局 29.5 s）；另以 1440×900 / iPhone 13 / 1180×820 三视口自动打完整局并人工复核截图。修正版图展示标注：港口泊位 A/C 与图面字母对调、修船厂同伙位移至右侧码头（仅标注名称，坐标未改），新增方向回归测试。未在真实手机物理设备上验收。
+- T22：done / `b7bf437` / [T22](tasks/T22-bot-table-game-over.md)：`npm test` 20 文件 84 测试（新增机器人全决策类型合法性与终局画面渲染测试）、`npm run build`（JS gzip 116.79 kB，产物不含 `botDelay`）通过；放宽限流下 3 条 Chromium E2E 通过（完整对局 34.5 s）；`npm run bots -- --players 4 --phones 1 --delay 900` 有头四窗口实跑至终局（288 s，无卡死），另以 1440×900 与 iPhone 13 视口截图复核终局画面。限制：终局后玩家无法离房再开一局（服务端只允许大厅阶段离房）。
 - 当前可启动：T20（Phase 5 已完成；Phase 6 需外部条件）。
 - MVP 功能范围和生产部署形态已在本地真实链路验证；真实公网发布仍以 T20 为前提。
 

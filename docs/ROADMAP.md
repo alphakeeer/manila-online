@@ -55,6 +55,7 @@ Terra 负责跨层一致性、规则缺陷、安全、事务和故障；Luna 负
 | [T19 单机公网部署与备份恢复手册](tasks/T19-deployment.md) | 5 | T18 | Terra |
 | [T20 首次真实公网部署与上线后验证](tasks/T20-public-launch.md) | 6 | T19 | Terra |
 | [T21 游玩体验与动效重构](tasks/T21-play-experience.md) | 4 补充 | T16、T17 | Luna |
+| [T22 本地机器人对局与终局结算画面](tasks/T22-bot-table-game-over.md) | 4 补充 | T21 | Luna |
 
 ## 并行与交接边界
 

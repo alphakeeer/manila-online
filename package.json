@@ -2,6 +2,12 @@
   "name": "manila",
   "private": true,
   "version": "0.1.0",
+  "description": "Private online 3–5 player web version of the Manila board game: server-authoritative rules, 8-character token access, one-command Docker deploy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alphakeeer/manila-online.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=22",

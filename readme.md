@@ -27,6 +27,7 @@
 11. [开发约定](#11-开发约定)
 12. [已知限制](#12-已知限制)
 13. [文档导航](#13-文档导航)
+14. [许可证](#14-许可证)
 
 ---
 
@@ -151,7 +152,7 @@ npm run bots -- --players 4 --phones 1 --delay 1200 --variant strengthened
 需要：一台有公网 IP 的 Linux 服务器（已装 Docker Engine 与 Compose v2）、一个解析到它的域名、防火墙放行 80/443。
 
 ```bash
-git clone <本仓库> /opt/manila && cd /opt/manila
+git clone https://github.com/alphakeeer/manila-online.git /opt/manila && cd /opt/manila
 scripts/deploy.sh --domain manila.example.com
 ```
 
@@ -386,3 +387,9 @@ docker compose --env-file .env.production -f compose.prod.yaml exec -T app node 
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 部署、升级、备份恢复与运维手册 |
 | [docs/tasks/](docs/tasks/) | 每个任务的目标、范围、验收与验证方式 |
 | [马尼拉_中文规则_翻译.md](马尼拉_中文规则_翻译.md) · [马尼拉_术语表.md](马尼拉_术语表.md) | 规则依据与术语 |
+
+---
+
+## 14. 许可证
+
+源代码以 [MIT 许可证](LICENSE) 发布。`manila_assets/`、官方规则书 PDF 与规则翻译等第三方游戏内容仅作开发参考，**不在授权范围内**；完整说明见 [LICENSE](LICENSE) 末尾。

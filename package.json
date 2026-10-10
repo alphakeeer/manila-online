@@ -22,6 +22,7 @@
     "dev": "npm run dev --workspace=@manila/web",
     "dev:server": "npm run dev --workspace=@manila/server",
     "dev:server:relaxed": "SESSION_WRITE_RATE_LIMIT_MAX=100000 LOGIN_RATE_LIMIT_MAX=1000 npm run dev:server",
+    "rooms": "npm run rooms --workspace=@manila/server",
     "simulate": "tsx scripts/simulate.ts",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node --env-file-if-exists=.env ./node_modules/playwright/cli.js test",
